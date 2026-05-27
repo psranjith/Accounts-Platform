@@ -1,0 +1,180 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'operator-console' %}
+{% assign page_title = 'Smartsoft Operator Console' %}
+{% assign breadcrumbs = 'Smartsoft|/operator · Console' %}
+{% include 'adp-shell-open' %}
+
+{% comment %}
+  Smartsoft Operator Console
+  ---------------------------
+  Platform-vendor surface, NOT firm-facing. Visible only when adp_personagroup == 'operator'.
+  Tabs: Firms · Catalog · Connectors · Platform Health · Settings
+  Production: tenant directory, plan billing, connector health, error budgets, etc.
+{% endcomment %}
+
+{% if adp_personagroup != 'operator' %}
+  <div class="adp-restricted">
+    <h3>Smartsoft staff only</h3>
+    <p>This console is reserved for Smartsoft platform operators. Your current role is <strong>{{ adp_role | default: 'Client' }}</strong>.</p>
+    <p><a href="/dashboard">&larr; Back to your dashboard</a></p>
+  </div>
+{% else %}
+
+{% fetchxml firms_q %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+  <entity name="adp_firm">
+    <attribute name="adp_firmid" />
+    <attribute name="adp_name" />
+    <attribute name="adp_plan" />
+    <attribute name="adp_clients" />
+    <attribute name="adp_accountants" />
+    <attribute name="adp_status" />
+    <attribute name="adp_createdon" />
+    <attribute name="adp_country" />
+    <order attribute="adp_name" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign firms = firms_q.results.entities %}
+
+{% assign total_clients = 0 %}{% assign total_accountants = 0 %}{% assign active_firms = 0 %}{% assign trial_firms = 0 %}
+{% for f in firms %}
+  {% assign total_clients = total_clients | plus: f.adp_clients %}
+  {% assign total_accountants = total_accountants | plus: f.adp_accountants %}
+  {% if f.adp_status.label == 'Active' %}{% assign active_firms = active_firms | plus: 1 %}{% endif %}
+  {% if f.adp_status.label == 'Trial'  %}{% assign trial_firms  = trial_firms  | plus: 1 %}{% endif %}
+{% endfor %}
+
+<div class="op-kpis">
+  <div class="op-kpi"><span>Firms</span><strong>{{ firms.size }}</strong><small>{{ active_firms }} active · {{ trial_firms }} trial</small></div>
+  <div class="op-kpi"><span>Client companies</span><strong>{{ total_clients }}</strong><small>across all firms</small></div>
+  <div class="op-kpi"><span>Accountants</span><strong>{{ total_accountants }}</strong><small>total seats</small></div>
+  <div class="op-kpi"><span>Platform uptime</span><strong>99.97%</strong><small>last 30 days</small></div>
+</div>
+
+<nav class="op-tabs" role="tablist">
+  <a class="op-tab is-active" href="#firms"      data-tab="firms">Firms</a>
+  <a class="op-tab"            href="#catalog"   data-tab="catalog">Catalog</a>
+  <a class="op-tab"            href="#connectors" data-tab="connectors">Connectors</a>
+  <a class="op-tab"            href="#health"    data-tab="health">Platform Health</a>
+  <a class="op-tab"            href="#settings"  data-tab="settings">Settings</a>
+</nav>
+
+<section class="op-panel is-active" data-panel="firms">
+  <div class="op-panel-head">
+    <h3>Tenant firms</h3>
+    <div><button class="btn btn-primary" type="button">+ Onboard firm</button></div>
+  </div>
+  <table class="table">
+    <thead><tr><th>Firm</th><th>Plan</th><th>Clients</th><th>Accountants</th><th>Status</th><th>Onboarded</th><th></th></tr></thead>
+    <tbody>
+      {% for f in firms %}
+      <tr>
+        <td><strong>{{ f.adp_name }}</strong><br/><small class="muted">{{ f.adp_country }}</small></td>
+        <td><span class="badge badge-plan-{{ f.adp_plan.label | downcase }}">{{ f.adp_plan.label }}</span></td>
+        <td>{{ f.adp_clients }}</td>
+        <td>{{ f.adp_accountants }}</td>
+        <td><span class="badge badge-{{ f.adp_status.label | downcase }}">{{ f.adp_status.label }}</span></td>
+        <td>{{ f.adp_createdon }}</td>
+        <td><a href="#" class="btn btn-link" data-firm="{{ f.adp_firmid }}">Manage</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="op-panel" data-panel="catalog">
+  <div class="op-panel-head"><h3>Service & report catalog</h3><div><button class="btn btn-default" type="button">Refresh catalog</button></div></div>
+  <p class="muted">Bundles, Power BI reports and engagement templates published to all firms. Sourced from <code>power-platform/catalog/</code>.</p>
+  <div class="op-catalog-grid">
+    <article class="op-cat-card"><strong>Bundles</strong><p>4 service bundles (Starter / Growth / Premium / Custom)</p><a href="#" class="btn btn-link">Edit bundles.json</a></article>
+    <article class="op-cat-card"><strong>Power BI reports</strong><p>12 reports across GST, Closure, Payroll, MIS</p><a href="#" class="btn btn-link">Edit powerbi-reports.json</a></article>
+    <article class="op-cat-card"><strong>Engagement templates</strong><p>7 process templates (GST, TDS, Audit prep, …)</p><a href="#" class="btn btn-link">Edit templates</a></article>
+    <article class="op-cat-card"><strong>Agent catalog</strong><p>6 enabled agents (Smart Agent, Tally Bot, GST Bot, …)</p><a href="/agents" class="btn btn-link">Open Agents</a></article>
+  </div>
+</section>
+
+<section class="op-panel" data-panel="connectors">
+  <div class="op-panel-head"><h3>Channel connectors</h3></div>
+  <table class="table">
+    <thead><tr><th>Connector</th><th>Type</th><th>Status</th><th>Throughput (24h)</th><th>Errors</th><th></th></tr></thead>
+    <tbody>
+      <tr><td><strong>Email ingest</strong></td><td>SMTP forwarder</td><td><span class="badge badge-active">Healthy</span></td><td>248 msgs</td><td>0</td><td><a href="#" class="btn btn-link">View</a></td></tr>
+      <tr><td><strong>WhatsApp Business</strong></td><td>Cloud API</td><td><span class="badge badge-active">Healthy</span></td><td>92 msgs</td><td>1</td><td><a href="#" class="btn btn-link">View</a></td></tr>
+      <tr><td><strong>Telegram bot</strong></td><td>Bot API</td><td><span class="badge badge-active">Healthy</span></td><td>34 msgs</td><td>0</td><td><a href="#" class="btn btn-link">View</a></td></tr>
+      <tr><td><strong>SharePoint</strong></td><td>Graph subscriptions</td><td><span class="badge badge-active">Healthy</span></td><td>17 events</td><td>0</td><td><a href="#" class="btn btn-link">View</a></td></tr>
+      <tr><td><strong>Tally RDP</strong></td><td>Function app</td><td><span class="badge badge-trial">Degraded</span></td><td>6 sessions</td><td>2</td><td><a href="#" class="btn btn-link">View</a></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="op-panel" data-panel="health">
+  <div class="op-panel-head"><h3>Platform health</h3></div>
+  <div class="op-health-grid">
+    <div class="op-health-card"><strong>API latency (p95)</strong><big>248 ms</big><small>target &lt; 400ms</small></div>
+    <div class="op-health-card"><strong>Ingestion queue depth</strong><big>3</big><small>avg 2.1</small></div>
+    <div class="op-health-card"><strong>Failed imports (24h)</strong><big>1.2%</big><small>SLO 2%</small></div>
+    <div class="op-health-card"><strong>Active sessions</strong><big>47</big><small>across all firms</small></div>
+  </div>
+  <p class="muted" style="margin-top:14px;">Detailed dashboards available in App Insights workspace <code>adp-platform-prod</code>.</p>
+</section>
+
+<section class="op-panel" data-panel="settings">
+  <div class="op-panel-head"><h3>Platform settings</h3></div>
+  <ul class="op-settings">
+    <li><strong>Default landing for new firms</strong> — <code>/dashboard</code> <a href="#" class="btn btn-link">Change</a></li>
+    <li><strong>Branding template</strong> — Smartsoft default <a href="#" class="btn btn-link">Edit</a></li>
+    <li><strong>Allowed connectors</strong> — Email, WA, TG, SP, Tally RDP <a href="#" class="btn btn-link">Manage</a></li>
+    <li><strong>Trial duration</strong> — 14 days <a href="#" class="btn btn-link">Change</a></li>
+    <li><strong>Feature flags</strong> — Operator console (preview), Multi-firm (preview) <a href="#" class="btn btn-link">Manage</a></li>
+  </ul>
+</section>
+
+<script>
+(function () {
+  function activate(hash) {
+    var name = (hash || '').replace('#','') || 'firms';
+    document.querySelectorAll('.op-tab').forEach(function(a){ a.classList.toggle('is-active', a.getAttribute('data-tab') === name); });
+    document.querySelectorAll('.op-panel').forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-panel') === name); });
+  }
+  document.querySelectorAll('.op-tab').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); history.replaceState(null,'',a.getAttribute('href')); activate(a.getAttribute('href')); });
+  });
+  activate(location.hash);
+})();
+</script>
+
+<style>
+  .op-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:16px; }
+  .op-kpi { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:10px 12px; }
+  .op-kpi span { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
+  .op-kpi strong { display:block; font-size:24px; color:#00395E; margin:2px 0; }
+  .op-kpi small { color:#6b7280; }
+  .op-tabs { display:flex; gap:2px; border-bottom:1px solid #e1e6ec; margin-bottom:12px; flex-wrap:wrap; }
+  .op-tab { padding:8px 14px; text-decoration:none; color:#6b7280; font-weight:600; font-size:13px; border-bottom:2px solid transparent; }
+  .op-tab.is-active { color:#00395E; border-bottom-color:#00A8E8; }
+  .op-panel { display:none; }
+  .op-panel.is-active { display:block; }
+  .op-panel-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .op-panel-head h3 { margin:0; color:#00395E; }
+  .op-catalog-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+  .op-cat-card { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:12px; }
+  .op-cat-card strong { color:#00395E; display:block; margin-bottom:4px; }
+  .op-cat-card p { font-size:13px; color:#6b7280; margin:4px 0 8px; }
+  .op-health-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+  .op-health-card { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:12px; }
+  .op-health-card big { display:block; font-size:24px; color:#00395E; font-weight:700; margin:4px 0; }
+  .op-health-card small { color:#6b7280; }
+  .op-settings { list-style:none; padding:0; margin:0; }
+  .op-settings li { padding:10px 0; border-bottom:1px solid #e1e6ec; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
+  .badge { padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .badge-active, .badge-plan-premium { background:#d1f3e0; color:#0a6b3a; }
+  .badge-trial,  .badge-plan-trial   { background:#fff3cd; color:#856404; }
+  .badge-plan-standard               { background:#e0e7ff; color:#3730a3; }
+  .adp-restricted { padding:32px; background:#fff3cd; border:1px solid #f5d597; border-radius:8px; }
+  .adp-restricted h3 { margin-top:0; color:#856404; }
+</style>
+
+{% endif %}
+
+{% include 'adp-shell-close' %}

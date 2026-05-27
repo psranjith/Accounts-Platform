@@ -1,0 +1,42 @@
+{% include 'adp-user-context' %}
+<section>
+  <h2>Data Capture Inbox</h2>
+  {% fetchxml inbox_query %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">
+    <entity name="adp_dataingestion">
+      <attribute name="adp_name" />
+      <attribute name="adp_channel" />
+      <attribute name="adp_sender" />
+      <attribute name="adp_status" />
+      <attribute name="adp_receivedon" />
+      <filter>
+        <condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" />
+      </filter>
+      <order attribute="adp_receivedon" descending="true" />
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Channel</th>
+        <th>Sender</th>
+        <th>Status</th>
+        <th>Received On</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in inbox_query.results.entities %}
+      <tr>
+        <td>{{ row.adp_name }}</td>
+        <td>{{ row.adp_channel.label }}</td>
+        <td>{{ row.adp_sender }}</td>
+        <td>{{ row.adp_status.label }}</td>
+        <td>{{ row.adp_receivedon }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>

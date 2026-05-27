@@ -1,0 +1,138 @@
+{
+  "name": "Flow_LaunchTally",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_LaunchTally",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "When_HTTP_Request_Received": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "companyId": {
+                  "type": "string"
+                },
+                "appUserId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "companyId",
+                "appUserId"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Get_Entitlement": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_commondataserviceforapps"
+            },
+            "operationId": "ListRecords",
+            "parameters": {
+              "entityName": "adp_entitlements",
+              "$filter": "_adp_companyid_value eq @{triggerBody()?['companyId']}"
+            }
+          }
+        },
+        "Validate_Tally_Entitlement": {
+          "runAfter": {
+            "Get_Entitlement": [
+              "Succeeded"
+            ]
+          },
+          "type": "If",
+          "expression": {
+            "equals": [
+              "@{first(body('Get_Entitlement')?['value'])?['adp_tallyenabled']}",
+              true
+            ]
+          },
+          "actions": {
+            "Call_RDP_Function": {
+              "type": "Http",
+              "inputs": {
+                "method": "GET",
+                "uri": "@{concat(parameters('adp_RdpFunctionBaseUrl'),'/api/rdp/generate?companyId=',triggerBody()?['companyId'])}",
+                "headers": {
+                  "x-functions-key": "@{parameters('adp_RdpFunctionKey')}"
+                }
+              }
+            },
+            "Create_Tally_Audit_Row": {
+              "runAfter": {
+                "Call_RDP_Function": [
+                  "Succeeded"
+                ]
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionReferenceName": "shared_commondataserviceforapps"
+                },
+                "operationId": "CreateRecord",
+                "parameters": {
+                  "entityName": "adp_tallysessions",
+                  "item/adp_name": "Tally launch @{utcNow()}",
+                  "item/adp_appuserid@odata.bind": "adp_appusers(@{triggerBody()?['appUserId']})",
+                  "item/adp_companyid@odata.bind": "adp_companies(@{triggerBody()?['companyId']})",
+                  "item/adp_launchtimestamp": "@{utcNow()}",
+                  "item/adp_sessionhost": "@{body('Call_RDP_Function')?['sessionHost']}",
+                  "item/adp_rdpdownloadurl": "@{body('Call_RDP_Function')?['rdpDownloadUrl']}",
+                  "item/adp_status": 100000000
+                }
+              }
+            },
+            "Response_OK": {
+              "runAfter": {
+                "Create_Tally_Audit_Row": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": {
+                  "rdpDownloadUrl": "@{body('Call_RDP_Function')?['rdpDownloadUrl']}"
+                }
+              }
+            }
+          },
+          "else": {
+            "actions": {
+              "Response_Forbidden": {
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                  "statusCode": 403,
+                  "body": {
+                    "error": "Tally entitlement is disabled for this company."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": {
+        "adp_RdpFunctionBaseUrl": {
+          "type": "String"
+        },
+        "adp_RdpFunctionKey": {
+          "type": "SecureString"
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {}
+    }
+  }
+}

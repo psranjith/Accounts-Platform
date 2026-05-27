@@ -1,0 +1,87 @@
+{
+  "name": "Flow_IngestTelegram",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_IngestTelegram",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "When_Webhook_Received": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Extract_Message_Metadata": {
+          "type": "Compose",
+          "inputs": {
+            "sender": "@{triggerBody()?['message']?['from']?['username']}",
+            "fileId": "@{triggerBody()?['message']?['document']?['file_id']}",
+            "companyId": "@{triggerBody()?['message']?['caption']}",
+            "messageId": "@{triggerBody()?['message']?['message_id']}"
+          }
+        },
+        "Get_File_Path": {
+          "runAfter": {
+            "Extract_Message_Metadata": [
+              "Succeeded"
+            ]
+          },
+          "type": "Http",
+          "inputs": {
+            "method": "GET",
+            "uri": "@{concat('https://api.telegram.org/bot',parameters('adp_TelegramBotToken'),'/getFile?file_id=',outputs('Extract_Message_Metadata')?['fileId'])}"
+          }
+        },
+        "Download_File": {
+          "runAfter": {
+            "Get_File_Path": [
+              "Succeeded"
+            ]
+          },
+          "type": "Http",
+          "inputs": {
+            "method": "GET",
+            "uri": "@{concat('https://api.telegram.org/file/bot',parameters('adp_TelegramBotToken'),'/',body('Get_File_Path')?['result']?['file_path'])}"
+          }
+        },
+        "Invoke_Standard_Ingestion_ChildFlow": {
+          "runAfter": {
+            "Download_File": [
+              "Succeeded"
+            ]
+          },
+          "type": "Workflow",
+          "inputs": {
+            "name": "Flow_Ingestion_Common",
+            "body": {
+              "channel": "Telegram",
+              "sender": "@{outputs('Extract_Message_Metadata')?['sender']}",
+              "companyId": "@{outputs('Extract_Message_Metadata')?['companyId']}",
+              "fileContent": "@{body('Download_File')}",
+              "sourceMessageId": "@{outputs('Extract_Message_Metadata')?['messageId']}"
+            }
+          }
+        }
+      },
+      "parameters": {
+        "adp_TelegramBotToken": {
+          "type": "SecureString"
+        }
+      }
+    }
+  }
+}

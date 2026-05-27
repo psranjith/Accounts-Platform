@@ -1,0 +1,187 @@
+# Table permissions for the ADP portal.
+# Apply via Power Pages Management app -> Table Permissions, or import this YAML
+# using `pac paportal upload` after converting to the portal-source schema.
+#
+# Scope reference:
+#   Global   - all records in the table
+#   Contact  - records where the related contact = portal contact
+#   Account  - records related to the contact's parent account
+#   Parent   - records related via a configured parent table permission
+#   Self     - the record representing the user themselves
+
+- adx_entityname: adp_company
+  adx_entitylogicalname: adp_company
+  adx_name: ADP Admin - Companies (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_company
+  adx_entitylogicalname: adp_company
+  adx_name: ADP Accountant - Assigned Companies
+  adx_scope: Account
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: false
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_company
+  adx_entitylogicalname: adp_company
+  adx_name: ADP Client - Own Company (Read)
+  adx_scope: Account
+  adx_create: false
+  adx_read: true
+  adx_write: false
+  adx_delete: false
+  adx_append: false
+  adx_appendto: false
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_appuser
+  adx_entitylogicalname: adp_appuser
+  adx_name: ADP Admin - App Users (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_appuser
+  adx_entitylogicalname: adp_appuser
+  adx_name: ADP Accountant - Company Users
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Assigned Companies
+  adx_parentrelationship: adp_company_adp_appuser
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: false
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_appuser
+  adx_entitylogicalname: adp_appuser
+  adx_name: ADP Client - Self
+  adx_scope: Self
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_dataingestion
+  adx_entitylogicalname: adp_dataingestion
+  adx_name: ADP Admin - Inbox (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_dataingestion
+  adx_entitylogicalname: adp_dataingestion
+  adx_name: ADP Accountant - Inbox (Parent Company)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Assigned Companies
+  adx_parentrelationship: adp_company_adp_dataingestion
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: false
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_dataingestion
+  adx_entitylogicalname: adp_dataingestion
+  adx_name: ADP Client - Inbox (Own Company, Read)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Client - Own Company (Read)
+  adx_parentrelationship: adp_company_adp_dataingestion
+  adx_read: true
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_tallysession
+  adx_entitylogicalname: adp_tallysession
+  adx_name: ADP Admin - Tally Sessions (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_tallysession
+  adx_entitylogicalname: adp_tallysession
+  adx_name: ADP Accountant - Tally Sessions
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Assigned Companies
+  adx_parentrelationship: adp_company_adp_tallysession
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_tallysession
+  adx_entitylogicalname: adp_tallysession
+  adx_name: ADP Client - Tally Sessions (Own Company)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Client - Own Company (Read)
+  adx_parentrelationship: adp_company_adp_tallysession
+  adx_create: true
+  adx_read: true
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_auditlog
+  adx_entitylogicalname: adp_auditlog
+  adx_name: ADP Admin - Audit Log (Read)
+  adx_scope: Global
+  adx_read: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_powerbireport
+  adx_entitylogicalname: adp_powerbireport
+  adx_name: ADP Admin - PowerBI Reports (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_powerbireport
+  adx_entitylogicalname: adp_powerbireport
+  adx_name: ADP Accountant - Reports (Parent)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Assigned Companies
+  adx_parentrelationship: adp_company_adp_powerbireport
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_powerbireport
+  adx_entitylogicalname: adp_powerbireport
+  adx_name: ADP Client - Reports (Own Company, Read)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Client - Own Company (Read)
+  adx_parentrelationship: adp_company_adp_powerbireport
+  adx_read: true
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_config
+  adx_entitylogicalname: adp_config
+  adx_name: ADP Admin - Config (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_webroles: [ADP Admin]

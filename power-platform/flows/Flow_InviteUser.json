@@ -1,0 +1,88 @@
+{
+  "name": "Flow_InviteUser",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_InviteUser",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "When_HTTP_Request_Received": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "companyId": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "email",
+                "companyId",
+                "role"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Send_B2B_Invite": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_msgraph"
+            },
+            "method": "post",
+            "path": "/v1.0/invitations",
+            "body": {
+              "invitedUserEmailAddress": "@{triggerBody()?['email']}",
+              "inviteRedirectUrl": "@{parameters('adp_PortalUrl')}",
+              "sendInvitationMessage": true
+            }
+          }
+        },
+        "Create_ADP_AppUser": {
+          "runAfter": {
+            "Send_B2B_Invite": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_commondataserviceforapps"
+            },
+            "operationId": "CreateRecord",
+            "parameters": {
+              "entityName": "adp_appusers",
+              "item/adp_name": "@{coalesce(triggerBody()?['displayName'],triggerBody()?['email'])}",
+              "item/adp_email": "@{triggerBody()?['email']}",
+              "item/adp_entraobjectid": "@{body('Send_B2B_Invite')?['invitedUser']?['id']}",
+              "item/adp_companyid@odata.bind": "adp_companies(@{triggerBody()?['companyId']})",
+              "item/adp_role": "@{triggerBody()?['role']}"
+            }
+          }
+        }
+      },
+      "parameters": {
+        "adp_PortalUrl": {
+          "type": "String"
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_msgraph": {},
+      "shared_commondataserviceforapps": {}
+    }
+  }
+}

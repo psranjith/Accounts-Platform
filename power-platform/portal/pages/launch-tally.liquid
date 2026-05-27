@@ -1,0 +1,181 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'launch-tally' %}
+{% assign page_title = 'Launch Tally' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Launch Tally' %}
+{% include 'adp-shell-open' %}
+{% assign rdp_base = adp_rdpfunctionbaseurl %}
+{% assign rdp_key  = adp_rdpfunctionkey %}
+
+<section class="launch-tally-tab">
+  <header>
+    <h2>Launch Tally</h2>
+    <p>Download a signed remote-desktop file for your company. The file is bound to your session and expires shortly after issue.</p>
+  </header>
+
+  {% if adp_companyid == blank or adp_companyid == '' %}
+    <div class="placeholder">
+      Your account is not mapped to a company. Contact support to be linked to a client company before launching Tally.
+    </div>
+  {% elsif rdp_base == blank or rdp_base == '' %}
+    <div class="placeholder">
+      RDP service not configured. Set <code>adp_RdpFunctionBaseUrl</code> and <code>adp_RdpFunctionKey</code> environment variables.
+    </div>
+  {% else %}
+    <div class="launch-card">
+      <div class="server-meta">
+        <div><span class="label">Tally server</span><strong>SmartsoftTallyServer</strong></div>
+        <div><span class="label">Host</span><code>20.244.8.237:3389</code></div>
+        <div><span class="label">Username</span><code>smttallysvr</code></div>
+      </div>
+      <div class="company-meta">
+        <div><span class="label">Company</span><strong>{{ adp_companyid }}</strong></div>
+        <div><span class="label">User</span><strong>{{ user.fullname | escape }}</strong></div>
+        <div><span class="label">Role</span><strong>{{ adp_role }}</strong></div>
+      </div>
+
+      <div class="rdp-shortcut-grid" role="list">
+        <button id="downloadRdpBtn" class="rdp-shortcut" type="button" role="listitem" aria-label="Download SmartsoftTallyServer RDP">
+          <svg class="rdp-shortcut-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" width="64" height="80" aria-hidden="true">
+            <path d="M6 2 h40 l12 12 v62 a2 2 0 0 1 -2 2 H6 a2 2 0 0 1 -2 -2 V4 a2 2 0 0 1 2 -2 z" fill="#ffffff" stroke="#9aa6b2" stroke-width="1"/>
+            <path d="M46 2 v10 a2 2 0 0 0 2 2 h10" fill="none" stroke="#9aa6b2" stroke-width="1"/>
+            <rect x="12" y="26" width="40" height="26" rx="2" fill="#005B96" stroke="#00395E" stroke-width="1"/>
+            <rect x="14" y="28" width="36" height="20" fill="#ffffff" opacity="0.9"/>
+            <rect x="26" y="52" width="12" height="3" fill="#00395E"/>
+            <rect x="22" y="55" width="20" height="2" rx="1" fill="#00395E"/>
+            <path d="M20 38 h14 l0 -3 l6 5 l-6 5 l0 -3 h-14 z" fill="#00A6A6"/>
+            <text x="32" y="72" font-family="Segoe UI, sans-serif" font-size="9" font-weight="700" fill="#00395E" text-anchor="middle">.RDP</text>
+          </svg>
+          <span class="rdp-shortcut-name">SmartsoftTallyServer.rdp</span>
+          <span class="rdp-shortcut-meta">Tally · 20.244.8.237</span>
+          <span class="btn-spinner" hidden>Generating…</span>
+        </button>
+      </div>
+
+      <p id="rdpStatus" class="rdp-status" role="status" aria-live="polite"></p>
+
+      <details class="rdp-help">
+        <summary>How to connect</summary>
+        <ol>
+          <li>Click <em>Download RDP File</em>. A file named <code>ADP-Tally-&lt;companyId&gt;.rdp</code> will be saved.</li>
+          <li>Double-click the file to launch Microsoft Remote Desktop.</li>
+          <li>Sign in with your Microsoft 365 credentials when prompted.</li>
+          <li>Tally will start automatically pointing to your company's data folder.</li>
+        </ol>
+        <p class="muted">The file embeds a short-lived signed token, gateway address, and session host. It does <strong>not</strong> contain passwords.</p>
+      </details>
+    </div>
+
+    <script>
+      (function () {
+        var btn = document.getElementById('downloadRdpBtn');
+        var status = document.getElementById('rdpStatus');
+        var spinner = btn.querySelector('.btn-spinner');
+        var nameEl = btn.querySelector('.rdp-shortcut-name');
+        var defaultName = nameEl ? nameEl.textContent : 'SmartsoftTallyServer.rdp';
+
+        var rdpBase = {{ rdp_base | json }};
+        var rdpKey  = {{ rdp_key  | json }};
+        var companyId = {{ adp_companyid | json }};
+
+        btn.addEventListener('click', function () {
+          btn.disabled = true;
+          btn.classList.add('busy');
+          if (spinner) spinner.hidden = false;
+          status.textContent = '';
+
+          var generateUrl = rdpBase.replace(/\/+$/, '') + '/api/rdp/generate?companyId=' + encodeURIComponent(companyId) + (rdpKey ? '&code=' + encodeURIComponent(rdpKey) : '');
+
+          fetch(generateUrl, { credentials: 'include' })
+            .then(function (r) {
+              if (!r.ok) throw new Error('Token request failed (' + r.status + ')');
+              return r.json();
+            })
+            .then(function (data) {
+              var filename = 'SmartsoftTallyServer-' + companyId + '.rdp';
+              // Always download as blob with explicit filename so the browser
+              // doesn't try to render the .rdp as text.
+              if (data.rdpDownloadUrl) {
+                fetch(data.rdpDownloadUrl, { credentials: 'include' })
+                  .then(function (r) {
+                    if (!r.ok) throw new Error('RDP download failed (' + r.status + ')');
+                    return r.blob();
+                  })
+                  .then(function (blob) {
+                    var url = URL.createObjectURL(new Blob([blob], { type: 'application/x-rdp' }));
+                    triggerDownload(url, filename);
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+                    status.textContent = 'Downloaded ' + filename + '. Open it to launch Tally.';
+                  })
+                  .catch(function (err) {
+                    status.textContent = 'Could not fetch RDP file: ' + (err && err.message ? err.message : 'unknown error');
+                  });
+              } else if (data.inlineRdp) {
+                var bytes = atob(data.inlineRdp);
+                var buf = new Uint8Array(bytes.length);
+                for (var i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
+                var blob = new Blob([buf], { type: 'application/x-rdp' });
+                var url = URL.createObjectURL(blob);
+                triggerDownload(url, filename);
+                setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+                status.textContent = 'Downloaded ' + filename + '. Open it to launch Tally.';
+              } else {
+                throw new Error('Unexpected response from RDP service.');
+              }
+            })
+            .catch(function (err) {
+              status.textContent = 'Could not generate RDP file: ' + (err && err.message ? err.message : 'unknown error');
+            })
+            .finally(function () {
+              btn.disabled = false;
+              btn.classList.remove('busy');
+              if (spinner) spinner.hidden = true;
+            });
+        });
+
+        function triggerDownload(url, filename) {
+          var a = document.createElement('a');
+          a.href = url;
+          if (filename) a.download = filename;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function () { document.body.removeChild(a); }, 0);
+        }
+      })();
+    </script>
+  {% endif %}
+</section>
+
+<style>
+  .launch-tally-tab .launch-card { background: #fff; border: 1px solid #e1e6ec; border-radius: 8px; padding: 24px; max-width: 640px; }
+  .launch-tally-tab .server-meta,
+  .launch-tally-tab .company-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; padding: 12px; background: #f4f6f9; border-radius: 6px; }
+  .launch-tally-tab .server-meta .label,
+  .launch-tally-tab .company-meta .label { display: block; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: .5px; }
+  .launch-tally-tab code { background: rgba(0,0,0,.05); padding: 1px 6px; border-radius: 3px; font-size: 13px; }
+  .launch-tally-tab .btn-lg { padding: 12px 22px; font-weight: 600; font-size: 15px; }
+  .launch-tally-tab .rdp-status { margin-top: 10px; color: #00395E; }
+  .launch-tally-tab .rdp-help { margin-top: 18px; }
+  .launch-tally-tab .rdp-help summary { cursor: pointer; font-weight: 600; color: #005B96; }
+  .launch-tally-tab .rdp-help .muted { color: #6b7280; font-size: 13px; }
+
+  /* Desktop-shortcut style RDP tile */
+  .launch-tally-tab .rdp-shortcut-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; }
+  .launch-tally-tab .rdp-shortcut {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    width: 132px; padding: 14px 10px 12px; gap: 6px;
+    background: transparent; border: 2px solid transparent; border-radius: 8px;
+    cursor: pointer; transition: background .12s, border-color .12s, transform .12s;
+    text-align: center;
+  }
+  .launch-tally-tab .rdp-shortcut:hover { background: #eef4fa; border-color: #cfe1f1; }
+  .launch-tally-tab .rdp-shortcut:focus { outline: none; background: #dceaf6; border-color: #005B96; }
+  .launch-tally-tab .rdp-shortcut:active { transform: scale(.98); }
+  .launch-tally-tab .rdp-shortcut.busy { opacity: .6; cursor: progress; }
+  .launch-tally-tab .rdp-shortcut-icon { width: 64px; height: 80px; flex: 0 0 auto; display: block; pointer-events: none; }
+  .launch-tally-tab .rdp-shortcut-name { font-size: 13px; font-weight: 600; color: #00395E; word-break: break-word; line-height: 1.2; }
+  .launch-tally-tab .rdp-shortcut-meta { font-size: 11px; color: #6b7280; }
+  .launch-tally-tab .rdp-shortcut .btn-spinner { font-size: 11px; color: #005B96; }
+</style>
+
+{% include 'adp-shell-close' %}

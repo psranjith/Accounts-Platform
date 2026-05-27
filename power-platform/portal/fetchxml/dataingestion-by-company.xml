@@ -1,0 +1,14 @@
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false">
+  <entity name="adp_dataingestion">
+    <attribute name="adp_name" />
+    <attribute name="adp_channel" />
+    <attribute name="adp_sender" />
+    <attribute name="adp_fileurl" />
+    <attribute name="adp_extractedmetadata" />
+    <attribute name="adp_status" />
+    <attribute name="adp_receivedon" />
+    <filter>
+      <condition attribute="adp_companyid" operator="eq-useroruserteams" />
+    </filter>
+  </entity>
+</fetch>

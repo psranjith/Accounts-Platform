@@ -1,0 +1,180 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'clients' %}
+{% assign page_title = 'Clients' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Clients' %}
+{% assign page_actions = '<a href="#new" class="btn btn-primary" id="clientsNewBtn">+ New client</a>' %}
+{% include 'adp-shell-open' %}
+
+{% comment %}
+  Clients hub
+  -----------
+  Replaces the old companies + onboarding pages. Single surface for the
+  firm to see all client companies and to onboard a new one.
+  Tabs: All clients · Onboarding pipeline · + New client
+  Visible to: firmadmin (all), accountant (assigned clients).
+{% endcomment %}
+
+{% fetchxml clients_q %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_company">
+    <attribute name="adp_companyid" />
+    <attribute name="adp_name" />
+    <order attribute="adp_name" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign clients = clients_q.results.entities %}
+
+<div class="cl-kpis">
+  <div class="cl-kpi"><span>Total clients</span><strong>{{ clients.size }}</strong><small>active engagements</small></div>
+  <div class="cl-kpi"><span>Onboarding</span><strong>2</strong><small>kits in progress</small></div>
+  <div class="cl-kpi"><span>Health: green</span><strong>{{ clients.size | minus: 1 }}</strong><small>on track</small></div>
+  <div class="cl-kpi"><span>Health: at risk</span><strong>1</strong><small>needs attention</small></div>
+</div>
+
+<nav class="cl-tabs" role="tablist">
+  <a class="cl-tab is-active" href="#all"      data-tab="all">All clients</a>
+  <a class="cl-tab"           href="#pipeline" data-tab="pipeline">Onboarding pipeline</a>
+  <a class="cl-tab"           href="#new"      data-tab="new">+ New client</a>
+</nav>
+
+<section class="cl-panel is-active" data-panel="all">
+  <div class="cl-toolbar">
+    <input class="cl-search" type="search" placeholder="Search clients…" id="clSearch" />
+    <select class="cl-filter">
+      <option>All bundles</option><option>Starter</option><option>Growth</option><option>Premium</option>
+    </select>
+    <select class="cl-filter">
+      <option>All health</option><option>Green</option><option>Amber</option><option>Red</option>
+    </select>
+  </div>
+  <table class="table cl-table">
+    <thead><tr><th>Client</th><th>Bundle</th><th>Lead accountant</th><th>Open tasks</th><th>Last activity</th><th>Health</th><th></th></tr></thead>
+    <tbody id="clBody">
+      {% assign bundles = 'Premium,Growth,Starter,Growth,Premium' | split: ',' %}
+      {% assign leads = 'Priya Menon,Arjun Rao,Neha Shah,Priya Menon,Arjun Rao' | split: ',' %}
+      {% assign tasks = '3,7,2,4,1' | split: ',' %}
+      {% assign healths = 'green,amber,green,green,red' | split: ',' %}
+      {% for c in clients %}
+      <tr data-name="{{ c.adp_name | downcase }}">
+        <td><strong><a href="/services?company={{ c.adp_companyid }}">{{ c.adp_name }}</a></strong><br/><small class="muted">ID {{ c.adp_companyid | slice: 24, 12 }}</small></td>
+        <td><span class="badge badge-bundle">{{ bundles[forloop.index0] }}</span></td>
+        <td>{{ leads[forloop.index0] }}</td>
+        <td>{{ tasks[forloop.index0] }}</td>
+        <td>{{ 2 | plus: forloop.index0 }}h ago</td>
+        <td><span class="dot dot-{{ healths[forloop.index0] }}"></span> {{ healths[forloop.index0] | capitalize }}</td>
+        <td>
+          <a class="btn btn-link" href="/services?company={{ c.adp_companyid }}">Services</a>
+          <a class="btn btn-link" href="/inbox?company={{ c.adp_companyid }}">Inbox</a>
+          <a class="btn btn-link" href="/insights?company={{ c.adp_companyid }}">Insights</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="cl-panel" data-panel="pipeline">
+  <div class="cl-pipeline">
+    <div class="cl-stage"><h4>Invited</h4>
+      <article class="cl-card"><strong>Zenith Foods</strong><small>Invited 2 days ago</small><p>Awaiting kit upload</p></article>
+    </div>
+    <div class="cl-stage"><h4>Kit received</h4>
+      <article class="cl-card"><strong>Crescent Retail</strong><small>Received 1 day ago</small><p>Bundle: Growth · Documents: 12/14</p></article>
+    </div>
+    <div class="cl-stage"><h4>Setup</h4>
+      <p class="muted small">No clients in this stage.</p>
+    </div>
+    <div class="cl-stage"><h4>Go-live</h4>
+      <p class="muted small">No clients in this stage.</p>
+    </div>
+  </div>
+</section>
+
+<section class="cl-panel" data-panel="new">
+  <div class="cl-onboard">
+    <h3>Invite a new client</h3>
+    <p class="muted">Send the client an onboarding kit. They receive an email link to upload statements, share Tally backup and confirm the engagement bundle.</p>
+    <form class="cl-form" onsubmit="event.preventDefault(); alert('Invite sent (preview).');">
+      <label>Company name<input type="text" required placeholder="e.g. Acme Traders Pvt Ltd" /></label>
+      <label>Primary contact name<input type="text" required placeholder="Full name" /></label>
+      <label>Primary contact email<input type="email" required placeholder="contact@company.com" /></label>
+      <label>Phone (WhatsApp)<input type="tel" placeholder="+91 …" /></label>
+      <label>Country
+        <select><option>India</option><option>UAE</option><option>Singapore</option><option>UK</option><option>Other</option></select>
+      </label>
+      <label>Suggested bundle
+        <select><option>Starter</option><option selected>Growth</option><option>Premium</option><option>Custom</option></select>
+      </label>
+      <label>Lead accountant
+        <select><option>Priya Menon</option><option>Arjun Rao</option><option>Neha Shah</option></select>
+      </label>
+      <label class="cl-form-full">Notes<textarea rows="3" placeholder="Anything the team should know"></textarea></label>
+      <div class="cl-form-actions">
+        <button class="btn btn-default" type="reset">Reset</button>
+        <button class="btn btn-primary" type="submit">Send invite</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+(function () {
+  function activate(hash) {
+    var name = (hash || '').replace('#','') || 'all';
+    document.querySelectorAll('.cl-tab').forEach(function(a){ a.classList.toggle('is-active', a.getAttribute('data-tab') === name); });
+    document.querySelectorAll('.cl-panel').forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-panel') === name); });
+  }
+  document.querySelectorAll('.cl-tab').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); history.replaceState(null,'',a.getAttribute('href')); activate(a.getAttribute('href')); });
+  });
+  var btn = document.getElementById('clientsNewBtn');
+  if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); history.replaceState(null,'','#new'); activate('#new'); });
+  var s = document.getElementById('clSearch');
+  if (s) s.addEventListener('input', function(){
+    var q = s.value.toLowerCase();
+    document.querySelectorAll('#clBody tr').forEach(function(tr){
+      tr.style.display = tr.getAttribute('data-name').indexOf(q) === -1 ? 'none' : '';
+    });
+  });
+  activate(location.hash);
+})();
+</script>
+
+<style>
+  .cl-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:16px; }
+  .cl-kpi { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:10px 12px; }
+  .cl-kpi span { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
+  .cl-kpi strong { display:block; font-size:24px; color:#00395E; margin:2px 0; }
+  .cl-kpi small { color:#6b7280; }
+  .cl-tabs { display:flex; gap:2px; border-bottom:1px solid #e1e6ec; margin-bottom:12px; flex-wrap:wrap; }
+  .cl-tab { padding:8px 14px; text-decoration:none; color:#6b7280; font-weight:600; font-size:13px; border-bottom:2px solid transparent; }
+  .cl-tab.is-active { color:#00395E; border-bottom-color:#00A8E8; }
+  .cl-panel { display:none; }
+  .cl-panel.is-active { display:block; }
+  .cl-toolbar { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .cl-search { flex:1 1 220px; padding:7px 10px; border:1px solid #e1e6ec; border-radius:6px; }
+  .cl-filter { padding:7px 10px; border:1px solid #e1e6ec; border-radius:6px; background:#fff; }
+  .cl-table .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+  .dot-green { background:#0a8a3e; } .dot-amber { background:#f0a830; } .dot-red { background:#c63a3a; }
+  .badge-bundle { background:#e1f0ff; color:#003b66; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .cl-pipeline { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+  .cl-stage { background:#f6f8fb; border:1px solid #e1e6ec; border-radius:8px; padding:10px; min-height:160px; }
+  .cl-stage h4 { margin:0 0 8px; color:#00395E; font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
+  .cl-card { background:#fff; border:1px solid #e1e6ec; border-radius:6px; padding:8px 10px; margin-bottom:8px; }
+  .cl-card strong { color:#00395E; display:block; }
+  .cl-card small { color:#6b7280; display:block; margin:2px 0; }
+  .cl-card p { margin:4px 0 0; font-size:13px; color:#374151; }
+  .cl-onboard { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:16px; max-width:780px; }
+  .cl-onboard h3 { margin-top:0; color:#00395E; }
+  .cl-form { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; margin-top:8px; }
+  .cl-form label { display:flex; flex-direction:column; font-size:12px; color:#374151; font-weight:600; }
+  .cl-form input, .cl-form select, .cl-form textarea { margin-top:4px; padding:7px 10px; border:1px solid #e1e6ec; border-radius:6px; font-size:14px; font-weight:400; }
+  .cl-form-full { grid-column:1 / -1; }
+  .cl-form-actions { grid-column:1 / -1; display:flex; gap:8px; justify-content:flex-end; }
+  .muted { color:#6b7280; }
+  .small { font-size:12px; }
+  @media (max-width: 720px) { .cl-form { grid-template-columns:1fr; } }
+</style>
+
+{% include 'adp-shell-close' %}

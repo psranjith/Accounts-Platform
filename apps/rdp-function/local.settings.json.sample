@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "RDP_GATEWAY_HOST": "rds-gateway.contoso.com",
+    "RDP_SESSION_HOST": "rds-session.contoso.com",
+    "RDP_SIGNING_SECRET": "replace-with-strong-secret",
+    "RDP_TOKEN_TTL_SECONDS": "300",
+    "RDP_USERNAME": "smttallysvr",
+    "RDP_FULL_ADDRESS": "20.244.8.237:3389"
+  }
+}

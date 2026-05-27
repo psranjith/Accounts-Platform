@@ -1,0 +1,27 @@
+- adx_anonymoususersrole: false
+  adx_authenticatedusersrole: false
+  adx_name: Administrators
+  adx_webroleid: 26752b21-0e1f-4170-835a-a95fa30eaf2e
+- adx_anonymoususersrole: true
+  adx_authenticatedusersrole: false
+  adx_name: Anonymous Users
+  adx_webroleid: 501709d1-1a63-4275-92e4-26873cb3f19c
+- adx_anonymoususersrole: false
+  adx_authenticatedusersrole: true
+  adx_name: Authenticated Users
+  adx_webroleid: 8b9d8c99-b798-450d-adfd-f5bc21d53b76
+- adx_anonymoususersrole: false
+  adx_authenticatedusersrole: false
+  adx_name: ADP Admin
+  adx_description: Full administrative access to all ADP companies, users, configuration, and audit logs.
+  adx_webroleid: a1adb1a1-0001-4adp-0001-000000000001
+- adx_anonymoususersrole: false
+  adx_authenticatedusersrole: false
+  adx_name: ADP Accountant
+  adx_description: Accountant user. Read/write access to assigned client companies. Cannot manage tenant-wide settings.
+  adx_webroleid: a1adb1a1-0002-4adp-0002-000000000002
+- adx_anonymoususersrole: false
+  adx_authenticatedusersrole: false
+  adx_name: ADP Client User
+  adx_description: External client. Read-only access scoped to own company; can submit documents and view reports.
+  adx_webroleid: a1adb1a1-0003-4adp-0003-000000000003

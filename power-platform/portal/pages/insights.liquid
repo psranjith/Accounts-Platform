@@ -1,0 +1,197 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'insights' %}
+{% assign page_title = 'Insights' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Insights' %}
+{% include 'adp-shell-open' %}
+
+{% comment %}
+  Insights hub
+  ------------
+  Single home for everything analytical. Replaces reports.liquid,
+  reports-company.liquid and report-powerbi.liquid.
+  Tabs: Overview · By Company · Power BI Library
+  Honours ?company= to pre-select a client.
+{% endcomment %}
+
+{% assign selected_company_id = request.params.company | default: request.params.id %}
+
+<nav class="ins-tabs" role="tablist">
+  <a class="ins-tab is-active" href="#overview"   data-tab="overview">Overview</a>
+  <a class="ins-tab"           href="#by-company" data-tab="by-company">By Company</a>
+  <a class="ins-tab"           href="#library"    data-tab="library">Power BI Library</a>
+</nav>
+
+<section class="ins-panel is-active" data-panel="overview">
+  <div class="ins-kpis">
+    <div class="ins-kpi"><span>Revenue (90d)</span><strong>₹ 1.24 Cr</strong><small>+ 8% MoM</small></div>
+    <div class="ins-kpi"><span>Open invoices</span><strong>148</strong><small>₹ 24.1 L · 23 overdue</small></div>
+    <div class="ins-kpi"><span>GST reconciled</span><strong>92%</strong><small>last filing window</small></div>
+    <div class="ins-kpi"><span>Avg closure days</span><strong>4.6</strong><small>target 5</small></div>
+  </div>
+  <div class="ins-charts">
+    <div class="ins-chart"><h4>Revenue by client (top 5)</h4>
+      <ul class="ins-bars">
+        <li><span class="ins-bar-label">Acme Traders</span><span class="ins-bar"><span class="ins-bar-fill" style="width:92%"></span></span><span class="ins-bar-val">₹ 28.4 L</span></li>
+        <li><span class="ins-bar-label">Beta Industries</span><span class="ins-bar"><span class="ins-bar-fill" style="width:74%"></span></span><span class="ins-bar-val">₹ 22.9 L</span></li>
+        <li><span class="ins-bar-label">Delta Logistics</span><span class="ins-bar"><span class="ins-bar-fill" style="width:55%"></span></span><span class="ins-bar-val">₹ 17.1 L</span></li>
+        <li><span class="ins-bar-label">Gamma Foods</span><span class="ins-bar"><span class="ins-bar-fill" style="width:42%"></span></span><span class="ins-bar-val">₹ 13.0 L</span></li>
+        <li><span class="ins-bar-label">Epsilon Retail</span><span class="ins-bar"><span class="ins-bar-fill" style="width:30%"></span></span><span class="ins-bar-val">₹ 9.4 L</span></li>
+      </ul>
+    </div>
+    <div class="ins-chart"><h4>Compliance status</h4>
+      <ul class="ins-stat">
+        <li><strong>GST returns filed</strong><span class="badge badge-ok">on track</span></li>
+        <li><strong>TDS payments</strong><span class="badge badge-warn">3 due this week</span></li>
+        <li><strong>ROC compliance</strong><span class="badge badge-ok">on track</span></li>
+        <li><strong>Income tax advance</strong><span class="badge badge-ok">on track</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="ins-panel" data-panel="by-company">
+  {% fetchxml companies_q %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+    <entity name="adp_company">
+      <attribute name="adp_companyid" />
+      <attribute name="adp_name" />
+      <order attribute="adp_name" />
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+  <div class="ins-by-toolbar">
+    <label>Company
+      <select id="insCompany">
+        {% for c in companies_q.results.entities %}
+          <option value="{{ c.adp_companyid }}" {% if c.adp_companyid == selected_company_id %}selected{% endif %}>{{ c.adp_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Period
+      <select><option>Last 30 days</option><option selected>Last quarter</option><option>YTD</option><option>Last FY</option></select>
+    </label>
+  </div>
+  <div class="ins-cards">
+    <article class="ins-card"><h4>P&amp;L summary</h4>
+      <p>Revenue <strong>₹ 28.4 L</strong> · Expenses <strong>₹ 18.2 L</strong> · PAT <strong>₹ 10.2 L</strong></p>
+    </article>
+    <article class="ins-card"><h4>Receivables ageing</h4>
+      <p>0–30d <strong>₹ 7.1 L</strong> · 31–60d <strong>₹ 3.4 L</strong> · 60d+ <strong>₹ 2.0 L</strong></p>
+    </article>
+    <article class="ins-card"><h4>Cash position</h4>
+      <p>Opening <strong>₹ 14.3 L</strong> · Closing <strong>₹ 17.6 L</strong> · Δ <strong>+ ₹ 3.3 L</strong></p>
+    </article>
+    <article class="ins-card"><h4>GST reconciliation</h4>
+      <p>2A vs Books match <strong>94%</strong> · Mismatches <strong>11</strong> · ITC at risk <strong>₹ 38k</strong></p>
+    </article>
+  </div>
+  <div class="ins-actions">
+    <a class="btn btn-default" href="#library">Open full report library →</a>
+    <a class="btn btn-link" href="/documents?company={{ selected_company_id }}">View documents</a>
+  </div>
+</section>
+
+<section class="ins-panel" data-panel="library">
+  <p class="muted">Power BI workspace: <code>{{ adp_powerbi_workspaceid }}</code></p>
+  <div class="ins-lib-grid">
+    <article class="ins-lib"><h4>Financial closure</h4><p>Monthly P&amp;L, balance sheet, ratios.</p><a class="btn btn-link" href="#" data-report="closure">Open →</a></article>
+    <article class="ins-lib"><h4>GST reconciliation</h4><p>GSTR-2A vs books mismatch, ITC at risk.</p><a class="btn btn-link" href="#" data-report="gst">Open →</a></article>
+    <article class="ins-lib"><h4>Receivables &amp; payables</h4><p>Ageing, top debtors, collection trend.</p><a class="btn btn-link" href="#" data-report="ap-ar">Open →</a></article>
+    <article class="ins-lib"><h4>Cash &amp; bank</h4><p>Movement, reconciliations, unreconciled items.</p><a class="btn btn-link" href="#" data-report="cash">Open →</a></article>
+    <article class="ins-lib"><h4>Payroll &amp; statutory</h4><p>Salary, PF, ESI, professional tax dashboards.</p><a class="btn btn-link" href="#" data-report="payroll">Open →</a></article>
+    <article class="ins-lib"><h4>Inventory turnover</h4><p>Slow movers, stock value, reorder signals.</p><a class="btn btn-link" href="#" data-report="inv">Open →</a></article>
+  </div>
+  <div id="insViewer" class="ins-viewer" hidden>
+    <div class="ins-viewer-head">
+      <strong id="insViewerTitle">Report</strong>
+      <button class="btn btn-link" type="button" id="insViewerClose">Close ✕</button>
+    </div>
+    <div class="ins-viewer-body">
+      <p class="muted">Power BI embed placeholder — would render report id <code id="insViewerId">—</code> from workspace <code>{{ adp_powerbi_workspaceid }}</code>.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  function activate(hash) {
+    var name = (hash || '').replace('#','') || 'overview';
+    document.querySelectorAll('.ins-tab').forEach(function(a){ a.classList.toggle('is-active', a.getAttribute('data-tab') === name); });
+    document.querySelectorAll('.ins-panel').forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-panel') === name); });
+  }
+  document.querySelectorAll('.ins-tab').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); history.replaceState(null,'',a.getAttribute('href')); activate(a.getAttribute('href')); });
+  });
+  document.querySelectorAll('.ins-lib [data-report]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      document.getElementById('insViewerId').textContent = a.getAttribute('data-report');
+      document.getElementById('insViewerTitle').textContent = a.closest('.ins-lib').querySelector('h4').textContent;
+      document.getElementById('insViewer').hidden = false;
+      document.getElementById('insViewer').scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+  });
+  var close = document.getElementById('insViewerClose');
+  if (close) close.addEventListener('click', function(){ document.getElementById('insViewer').hidden = true; });
+
+  // Pre-select by-company tab when ?company= is passed.
+  var qp = new URLSearchParams(location.search);
+  if ((qp.get('company') || qp.get('id')) && !location.hash) {
+    history.replaceState(null,'','#by-company');
+  }
+  activate(location.hash);
+
+  var sel = document.getElementById('insCompany');
+  if (sel) sel.addEventListener('change', function(){
+    var p = new URLSearchParams(location.search);
+    p.set('company', sel.value);
+    location.search = p.toString();
+  });
+})();
+</script>
+
+<style>
+  .ins-tabs { display:flex; gap:2px; border-bottom:1px solid #e1e6ec; margin-bottom:12px; flex-wrap:wrap; }
+  .ins-tab { padding:8px 14px; text-decoration:none; color:#6b7280; font-weight:600; font-size:13px; border-bottom:2px solid transparent; }
+  .ins-tab.is-active { color:#00395E; border-bottom-color:#00A8E8; }
+  .ins-panel { display:none; } .ins-panel.is-active { display:block; }
+  .ins-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:16px; }
+  .ins-kpi { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:10px 12px; }
+  .ins-kpi span { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
+  .ins-kpi strong { display:block; font-size:24px; color:#00395E; margin:2px 0; }
+  .ins-kpi small { color:#6b7280; }
+  .ins-charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px; }
+  .ins-chart { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:12px; }
+  .ins-chart h4 { margin:0 0 8px; color:#00395E; }
+  .ins-bars { list-style:none; padding:0; margin:0; }
+  .ins-bars li { display:grid; grid-template-columns:120px 1fr 80px; align-items:center; gap:8px; margin:6px 0; font-size:13px; }
+  .ins-bar { display:block; height:10px; background:#eef2f7; border-radius:6px; overflow:hidden; }
+  .ins-bar-fill { display:block; height:100%; background:linear-gradient(90deg,#00395E,#00A8E8); }
+  .ins-bar-val { text-align:right; font-weight:600; color:#00395E; }
+  .ins-stat { list-style:none; padding:0; margin:0; }
+  .ins-stat li { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #eef2f7; }
+  .ins-stat li:last-child { border-bottom:0; }
+  .badge { padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .badge-ok { background:#d1f3e0; color:#0a6b3a; }
+  .badge-warn { background:#fff3cd; color:#856404; }
+  .ins-by-toolbar { display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .ins-by-toolbar label { display:flex; flex-direction:column; font-size:12px; color:#374151; font-weight:600; }
+  .ins-by-toolbar select { margin-top:4px; padding:6px 10px; border:1px solid #e1e6ec; border-radius:6px; min-width:220px; }
+  .ins-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+  .ins-card { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:12px; }
+  .ins-card h4 { margin:0 0 6px; color:#00395E; font-size:14px; }
+  .ins-card p { margin:0; font-size:13px; color:#374151; }
+  .ins-card strong { color:#00395E; }
+  .ins-actions { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
+  .ins-lib-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; }
+  .ins-lib { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:12px; }
+  .ins-lib h4 { margin:0 0 4px; color:#00395E; font-size:14px; }
+  .ins-lib p { margin:0 0 8px; font-size:13px; color:#6b7280; }
+  .ins-viewer { margin-top:14px; background:#fff; border:1px solid #e1e6ec; border-radius:8px; overflow:hidden; }
+  .ins-viewer-head { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#f6f8fb; border-bottom:1px solid #e1e6ec; }
+  .ins-viewer-head strong { color:#00395E; }
+  .ins-viewer-body { padding:30px; min-height:240px; background:#fbfcfd; }
+  .muted { color:#6b7280; }
+</style>
+
+{% include 'adp-shell-close' %}

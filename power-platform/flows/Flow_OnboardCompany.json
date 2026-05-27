@@ -1,0 +1,138 @@
+{
+  "name": "Flow_OnboardCompany",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_OnboardCompany",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "actions": {
+        "Create_Entra_Security_Group": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_msgraph"
+            },
+            "method": "post",
+            "path": "/v1.0/groups",
+            "body": {
+              "displayName": "ADP-@{triggerBody()?['adp_name']}",
+              "mailEnabled": false,
+              "mailNickname": "adp-@{guid()}",
+              "securityEnabled": true
+            }
+          }
+        },
+        "Create_SharePoint_Site": {
+          "runAfter": {
+            "Create_Entra_Security_Group": [
+              "Succeeded"
+            ]
+          },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_sharepointonline"
+            },
+            "method": "post",
+            "path": "/_api/SPSiteManager/create",
+            "body": {
+              "Title": "@{triggerBody()?['adp_name']}",
+              "Url": "@{concat(variables('SharePointBaseUrl'),'/',triggerBody()?['adp_name'])}",
+              "Lcid": 1033,
+              "WebTemplate": "STS#3"
+            }
+          }
+        },
+        "Create_Azure_Storage_Container": {
+          "runAfter": {
+            "Create_SharePoint_Site": [
+              "Succeeded"
+            ]
+          },
+          "type": "Http",
+          "inputs": {
+            "method": "PUT",
+            "uri": "@{concat(parameters('adp_AzureStorageApiBase'),'/containers/',toLower(replace(triggerBody()?['adp_name'],' ','-')))}",
+            "headers": {
+              "x-api-key": "@{parameters('adp_AzureStorageApiKey')}"
+            }
+          }
+        },
+        "Provision_PowerBI_Workspace": {
+          "runAfter": {
+            "Create_Azure_Storage_Container": [
+              "Succeeded"
+            ]
+          },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_powerbi"
+            },
+            "method": "post",
+            "path": "/v1.0/myorg/groups",
+            "body": {
+              "name": "ADP - @{triggerBody()?['adp_name']}"
+            }
+          }
+        },
+        "Update_Company_Record": {
+          "runAfter": {
+            "Provision_PowerBI_Workspace": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_commondataserviceforapps"
+            },
+            "operationId": "UpdateRow",
+            "parameters": {
+              "entityName": "adp_companies",
+              "recordId": "@{triggerBody()?['adp_companyid']}",
+              "item/adp_entragroupid": "@{body('Create_Entra_Security_Group')?['id']}",
+              "item/adp_sharepointsiteurl": "@{body('Create_SharePoint_Site')?['SiteUrl']}",
+              "item/adp_storagecontainerurl": "@{concat(parameters('adp_AzureStorageContainerBase'),'/',toLower(replace(triggerBody()?['adp_name'],' ','-')))}"
+            }
+          }
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "adp_AzureStorageApiBase": {
+          "type": "String"
+        },
+        "adp_AzureStorageApiKey": {
+          "type": "SecureString"
+        },
+        "adp_AzureStorageContainerBase": {
+          "type": "String"
+        }
+      },
+      "triggers": {
+        "When_Company_Created": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_commondataserviceforapps"
+            },
+            "operationId": "SubscribeWebhookTrigger",
+            "parameters": {
+              "entityname": "adp_companies",
+              "scope": "Organization",
+              "filteringattributes": "adp_name"
+            }
+          }
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {},
+      "shared_msgraph": {},
+      "shared_sharepointonline": {},
+      "shared_powerbi": {}
+    }
+  }
+}

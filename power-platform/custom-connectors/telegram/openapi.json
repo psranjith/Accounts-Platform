@@ -1,0 +1,40 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "ADP Telegram Connector",
+    "description": "Custom connector for Telegram Bot API file retrieval",
+    "version": "1.0"
+  },
+  "host": "api.telegram.org",
+  "basePath": "/",
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/bot{botToken}/getFile": {
+      "get": {
+        "summary": "Get file path",
+        "operationId": "GetFile",
+        "parameters": [
+          {
+            "name": "botToken",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "file_id",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  }
+}

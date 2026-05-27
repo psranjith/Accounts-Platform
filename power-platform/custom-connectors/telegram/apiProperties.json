@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "connectionParameters": {
+      "botToken": {
+        "type": "securestring",
+        "uiDefinition": {
+          "displayName": "Telegram Bot Token",
+          "description": "Token for Telegram bot",
+          "tooltip": "Paste token from BotFather",
+          "constraints": {
+            "required": "true"
+          }
+        }
+      }
+    },
+    "iconBrandColor": "#2AABEE",
+    "capabilities": [],
+    "policyTemplateInstances": []
+  }
+}

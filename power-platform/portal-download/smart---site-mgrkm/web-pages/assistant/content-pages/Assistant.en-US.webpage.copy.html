@@ -1,0 +1,10 @@
+{% include 'adp-user-context' %}
+<section>
+  <h2>Smart Agent</h2>
+  <p>Copilot Studio bot embed with authenticated context.</p>
+  <div id="copilot-studio-agent"
+       data-company-id="{{ adp_companyid }}"
+       data-user-id="{{ user.id }}">
+    {% comment %} Paste Copilot Studio Power Pages embed snippet here. {% endcomment %}
+  </div>
+</section>

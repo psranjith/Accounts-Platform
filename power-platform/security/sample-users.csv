@@ -1,0 +1,14 @@
+# Sample users to seed for testing the three permission levels.
+# Create each as an Entra ID (Microsoft 365) user, then run the
+# Flow_InviteUser flow with the matching role to provision an adp_appuser
+# row and assign the correct Power Pages web role.
+#
+# Replace passwords through Microsoft 365 admin centre on first login.
+# DO NOT commit real passwords to source control.
+
+UserPrincipalName,DisplayName,Role,CompanyName,Notes
+admin@<tenant>.onmicrosoft.com,ADP Admin,ADP Admin,,"Tenant-wide admin. Sees all companies."
+accountant.lead@<tenant>.onmicrosoft.com,Priya Sharma,ADP Accountant,,"Internal accountant. Assign to multiple companies via adp_appuser <-> adp_company."
+accountant.jr@<tenant>.onmicrosoft.com,Rohit Kumar,ADP Accountant,,"Junior accountant. Limit to one or two companies for review."
+client.acme@<client-domain>,Anita Rao,ADP Client User,Acme Traders Pvt Ltd,"External user. Mapped to Acme Traders only."
+client.beta@<client-domain>,Vikram Singh,ADP Client User,Beta Industries,"External user. Mapped to Beta Industries only."

@@ -1,0 +1,75 @@
+{
+  "name": "Flow_IngestWhatsApp",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_IngestWhatsApp",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "When_Webhook_Received": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "mediaUrl": {
+                  "type": "string"
+                },
+                "companyId": {
+                  "type": "string"
+                },
+                "messageId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "mediaUrl",
+                "companyId"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Download_Media": {
+          "type": "Http",
+          "inputs": {
+            "method": "GET",
+            "uri": "@{triggerBody()?['mediaUrl']}",
+            "headers": {
+              "Authorization": "Bearer @{parameters('adp_WhatsAppAccessToken')}"
+            }
+          }
+        },
+        "Invoke_Standard_Ingestion_ChildFlow": {
+          "runAfter": {
+            "Download_Media": [
+              "Succeeded"
+            ]
+          },
+          "type": "Workflow",
+          "inputs": {
+            "name": "Flow_Ingestion_Common",
+            "body": {
+              "channel": "WhatsApp",
+              "sender": "@{triggerBody()?['from']}",
+              "companyId": "@{triggerBody()?['companyId']}",
+              "fileContent": "@{body('Download_Media')}",
+              "sourceMessageId": "@{triggerBody()?['messageId']}"
+            }
+          }
+        }
+      },
+      "parameters": {
+        "adp_WhatsAppAccessToken": {
+          "type": "SecureString"
+        }
+      }
+    }
+  }
+}

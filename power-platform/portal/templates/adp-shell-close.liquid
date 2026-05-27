@@ -1,0 +1,113 @@
+{% comment %} ADP Portal Shell — CLOSE (closes shell-open) {% endcomment %}
+      </div>
+    </main>
+  </div>
+</div>
+
+<style>
+  /* --- ADP Shell --------------------------------------------------------- */
+  .adp-shell { --rail-w: 220px; --top-h: 56px; --navy:#00395E; --cyan:#00A8E8; --line:#e1e6ec; --muted:#6b7280;
+               font-family: Inter, system-ui, sans-serif; color:#0f172a; background:#f7f9fc; min-height: 70vh; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .adp-shell .muted { color: var(--muted); }
+  .adp-shell-top { display:flex; align-items:center; gap:14px; height: var(--top-h); padding: 0 16px; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+  .adp-shell-burger { display:none; background:transparent; border:0; font-size:22px; color:var(--navy); cursor:pointer; }
+  .adp-shell-brand { display:flex; align-items:center; gap:10px; flex:0 0 auto; min-width: var(--rail-w); }
+  .adp-shell-firm-logo { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background: linear-gradient(135deg, var(--navy), var(--cyan)); color:#fff; font-weight:700; }
+  .adp-shell-brand-text strong { display:block; color: var(--navy); font-size:14px; line-height:1.1; }
+  .adp-shell-platform { font-size:11px; color: var(--muted); }
+  .adp-shell-switcher { display:flex; align-items:center; gap:6px; flex:1 1 auto; max-width: 480px; }
+  .adp-shell-switcher label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .adp-shell-switcher select { flex:1; padding:4px 8px; border:1px solid var(--line); border-radius:6px; font-size:13px; background:#fff; }
+  .adp-shell-profile { display:flex; align-items:center; gap:10px; margin-left:auto; }
+  .adp-shell-persona-badge { font-size:11px; font-weight:600; padding:3px 8px; border-radius:999px; border:1px solid var(--line); background:#f7f9fc; color: var(--navy); }
+  .adp-shell-persona-badge.persona-operator  { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
+  .adp-shell-persona-badge.persona-firmadmin { background:#e0e7ff; color:#3730a3; border-color:#a5b4fc; }
+  .adp-shell-persona-badge.persona-accountant{ background:#e0f2fe; color:#075985; border-color:#7dd3fc; }
+  .adp-shell-persona-badge.persona-client    { background:#dcfce7; color:#166534; border-color:#86efac; }
+  .adp-shell-user { font-size:13px; color: var(--navy); font-weight:600; }
+
+  .adp-shell-body { display:grid; grid-template-columns: var(--rail-w) 1fr; min-height: calc(70vh - var(--top-h)); }
+  .adp-shell-rail { background:#fff; border-right:1px solid var(--line); padding:10px 8px; display:flex; flex-direction:column; }
+  .adp-shell-rail nav { display:flex; flex-direction:column; gap:2px; }
+  .adp-nav-section { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color: var(--muted); padding:10px 12px 4px; }
+  .adp-nav-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; color: var(--navy); text-decoration:none; font-size:13px; font-weight:500; }
+  .adp-nav-item .ico { width:18px; text-align:center; font-size:14px; }
+  .adp-nav-item:hover { background:#eef3f8; }
+  .adp-nav-item.is-active { background: var(--navy); color:#fff; }
+  .adp-nav-item.is-active .ico { color:#fff; }
+  .adp-shell-rail-foot { margin-top:auto; padding:8px 12px; border-top:1px solid var(--line); }
+
+  .adp-shell-main { padding: 14px 18px 24px; min-width:0; }
+  .adp-shell-crumbs { font-size:12px; color: var(--muted); margin-bottom:6px; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+  .adp-shell-crumbs a { color: var(--muted); text-decoration:none; }
+  .adp-shell-crumbs a:hover { color: var(--navy); text-decoration: underline; }
+  .adp-shell-crumbs .sep { color:#9ca3af; }
+  .adp-shell-crumbs .is-current { color: var(--navy); font-weight:600; }
+  .adp-shell-page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .adp-shell-page-title { margin:0; font-size:22px; color: var(--navy); font-weight:700; }
+  .adp-shell-page-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .adp-shell-content { min-width:0; }
+  .adp-shell-content > section:first-child > h2:first-child,
+  .adp-shell-content > section:first-child > .adp-inbox-head h2,
+  .adp-shell-content > section:first-child > header > h2 { /* let pages keep their own headings */ }
+
+  @media (max-width: 980px) {
+    .adp-shell-body { grid-template-columns: 1fr; }
+    .adp-shell-rail { position:fixed; left:-260px; top: var(--top-h); width: 240px; height: calc(100vh - var(--top-h)); transition: left .2s ease; z-index:9; box-shadow: 6px 0 24px rgba(0,0,0,.08); }
+    .adp-shell-rail.is-open { left:0; }
+    .adp-shell-burger { display:inline-block; }
+    .adp-shell-brand { min-width:auto; }
+    .adp-shell-switcher { display:none; }
+  }
+</style>
+
+<script>
+  (function () {
+    var shell = document.currentScript.previousElementSibling;
+    while (shell && !shell.classList.contains) shell = shell.previousElementSibling;
+    var rail = document.getElementById('adpShellRail');
+    var burger = document.querySelector('[data-adp-burger]');
+    if (burger && rail) burger.addEventListener('click', function () { rail.classList.toggle('is-open'); });
+
+    // ---- Company switcher: populate from companies fetched in preview or page context.
+    var sw = document.getElementById('adpCompanySwitcher');
+    if (sw) {
+      // Lazy-load any companies declared via JSON data-island on the page.
+      var fromIsland = document.getElementById('adpShellCompanies');
+      var companies = [];
+      if (fromIsland) { try { companies = JSON.parse(fromIsland.textContent || '[]'); } catch (e) {} }
+      if (!companies.length) {
+        companies = [
+          { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' },
+          { id: '00000000-0000-0000-0000-000000000002', name: 'Beta Industries' },
+          { id: '00000000-0000-0000-0000-000000000003', name: 'Gamma Foods LLP' },
+          { id: '00000000-0000-0000-0000-000000000004', name: 'Delta Logistics' },
+          { id: '00000000-0000-0000-0000-000000000005', name: 'Epsilon Retail' }
+        ];
+      }
+      var current = sw.getAttribute('data-adp-company') || '';
+      var params = new URLSearchParams(location.search);
+      if (params.get('company')) current = params.get('company');
+      companies.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.name;
+        if (c.id === current) opt.selected = true;
+        sw.appendChild(opt);
+      });
+      sw.addEventListener('change', function () {
+        var url = new URL(location.href);
+        if (sw.value) url.searchParams.set('company', sw.value);
+        else url.searchParams.delete('company');
+        location.href = url.toString();
+      });
+    }
+
+    // ---- Firm switcher (Operator only) — preview stub: just reload with ?firm=
+    var fw = document.getElementById('adpFirmSwitcher');
+    if (fw) fw.addEventListener('change', function () {
+      var url = new URL(location.href);
+      if (fw.value) url.searchParams.set('firm', fw.value); else url.searchParams.delete('firm');
+      location.href = url.toString();
+    });
+  })();
+</script>

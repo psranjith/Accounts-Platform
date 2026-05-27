@@ -1,0 +1,171 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'billing' %}
+{% assign page_title = 'Billing' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Billing' %}
+{% include 'adp-shell-open' %}
+
+{% comment %}
+  Billing hub
+  -----------
+  Replaces pricing.liquid + subscription.liquid.
+  Tabs: Plans · Active subscription · Invoices · Payment method
+  Visible to: firmadmin (full), client (their own subscription).
+{% endcomment %}
+
+<nav class="bl-tabs" role="tablist">
+  <a class="bl-tab is-active" href="#plans"    data-tab="plans">Plans</a>
+  <a class="bl-tab"           href="#active"   data-tab="active">Active subscription</a>
+  <a class="bl-tab"           href="#invoices" data-tab="invoices">Invoices</a>
+  <a class="bl-tab"           href="#payment"  data-tab="payment">Payment method</a>
+</nav>
+
+<section class="bl-panel is-active" data-panel="plans">
+  <div class="bl-plans">
+    <article class="bl-plan">
+      <header><h3>Starter</h3><div class="bl-price">₹ 4,999<small>/ month</small></div></header>
+      <ul>
+        <li>Up to 2 client companies</li>
+        <li>Email + WhatsApp ingestion</li>
+        <li>Basic GST &amp; closure reports</li>
+        <li>Smart Agent (limited)</li>
+      </ul>
+      <button class="btn btn-default" type="button">Choose Starter</button>
+    </article>
+    <article class="bl-plan bl-plan-featured">
+      <header><h3>Growth</h3><div class="bl-price">₹ 12,999<small>/ month</small></div><span class="bl-badge">Most popular</span></header>
+      <ul>
+        <li>Up to 10 client companies</li>
+        <li>All ingestion channels (incl. Telegram, SP)</li>
+        <li>Full reports library + Power BI</li>
+        <li>Smart Agent (unlimited)</li>
+        <li>Engagement automations</li>
+      </ul>
+      <button class="btn btn-primary" type="button">Choose Growth</button>
+    </article>
+    <article class="bl-plan">
+      <header><h3>Premium</h3><div class="bl-price">₹ 24,999<small>/ month</small></div></header>
+      <ul>
+        <li>Unlimited client companies</li>
+        <li>Dedicated success manager</li>
+        <li>Priority Tally RDP &amp; SLA</li>
+        <li>Custom report development</li>
+        <li>Advanced workflow agents</li>
+      </ul>
+      <button class="btn btn-default" type="button">Choose Premium</button>
+    </article>
+  </div>
+  <p class="muted small">All plans are billed monthly in INR. GST applies. Annual billing receives a 12% discount.</p>
+</section>
+
+<section class="bl-panel" data-panel="active">
+  <div class="bl-active">
+    <div class="bl-active-card">
+      <span class="badge badge-active">Active</span>
+      <h3>Growth plan</h3>
+      <p class="muted">Renews on <strong>15 February 2026</strong></p>
+      <ul class="bl-active-meta">
+        <li><span>Monthly amount</span><strong>₹ 12,999</strong></li>
+        <li><span>Client companies in use</span><strong>5 / 10</strong></li>
+        <li><span>Accountant seats</span><strong>3 / unlimited</strong></li>
+        <li><span>Next invoice</span><strong>₹ 15,338 (incl. GST)</strong></li>
+      </ul>
+      <div class="bl-active-actions">
+        <button class="btn btn-default" type="button">Change plan</button>
+        <button class="btn btn-link" type="button">Cancel subscription</button>
+      </div>
+    </div>
+    <div class="bl-active-side">
+      <h4>Usage this cycle</h4>
+      <ul class="bl-usage">
+        <li><span>Documents ingested</span><strong>1,284</strong></li>
+        <li><span>Smart Agent prompts</span><strong>317</strong></li>
+        <li><span>Tally RDP sessions</span><strong>22</strong></li>
+        <li><span>Reports run</span><strong>148</strong></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="bl-panel" data-panel="invoices">
+  <table class="table">
+    <thead><tr><th>Invoice</th><th>Date</th><th>Period</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>INV-2026-0008</td><td>15 Jan 2026</td><td>15 Jan – 14 Feb</td><td>₹ 15,338</td><td><span class="badge badge-active">Paid</span></td><td><a href="#" class="btn btn-link">Download</a></td></tr>
+      <tr><td>INV-2025-0007</td><td>15 Dec 2025</td><td>15 Dec – 14 Jan</td><td>₹ 15,338</td><td><span class="badge badge-active">Paid</span></td><td><a href="#" class="btn btn-link">Download</a></td></tr>
+      <tr><td>INV-2025-0006</td><td>15 Nov 2025</td><td>15 Nov – 14 Dec</td><td>₹ 15,338</td><td><span class="badge badge-active">Paid</span></td><td><a href="#" class="btn btn-link">Download</a></td></tr>
+      <tr><td>INV-2025-0005</td><td>15 Oct 2025</td><td>15 Oct – 14 Nov</td><td>₹ 15,338</td><td><span class="badge badge-active">Paid</span></td><td><a href="#" class="btn btn-link">Download</a></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="bl-panel" data-panel="payment">
+  <div class="bl-pay">
+    <div class="bl-pay-card">
+      <strong>Visa •••• 4421</strong>
+      <p class="muted">Expires 09/2027 · Auto-charge on the 15th</p>
+      <button class="btn btn-default" type="button">Update card</button>
+    </div>
+    <div class="bl-pay-card">
+      <strong>Billing address</strong>
+      <p class="muted">Smartsoft Books LLP<br/>L4 Prestige Atlanta, Indiranagar<br/>Bengaluru 560038, India<br/>GSTIN: 29ABCDE1234F1Z5</p>
+      <button class="btn btn-link" type="button">Edit</button>
+    </div>
+    <div class="bl-pay-card">
+      <strong>Receipts</strong>
+      <p class="muted">Sent to <code>finance@smartsoftbooks.in</code></p>
+      <button class="btn btn-link" type="button">Add recipient</button>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  function activate(hash) {
+    var name = (hash || '').replace('#','') || 'plans';
+    document.querySelectorAll('.bl-tab').forEach(function(a){ a.classList.toggle('is-active', a.getAttribute('data-tab') === name); });
+    document.querySelectorAll('.bl-panel').forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-panel') === name); });
+  }
+  document.querySelectorAll('.bl-tab').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); history.replaceState(null,'',a.getAttribute('href')); activate(a.getAttribute('href')); });
+  });
+  activate(location.hash);
+})();
+</script>
+
+<style>
+  .bl-tabs { display:flex; gap:2px; border-bottom:1px solid #e1e6ec; margin-bottom:14px; flex-wrap:wrap; }
+  .bl-tab { padding:8px 14px; text-decoration:none; color:#6b7280; font-weight:600; font-size:13px; border-bottom:2px solid transparent; }
+  .bl-tab.is-active { color:#00395E; border-bottom-color:#00A8E8; }
+  .bl-panel { display:none; } .bl-panel.is-active { display:block; }
+  .bl-plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+  .bl-plan { background:#fff; border:1px solid #e1e6ec; border-radius:10px; padding:16px; position:relative; }
+  .bl-plan-featured { border-color:#00A8E8; box-shadow:0 4px 14px rgba(0,168,232,.18); }
+  .bl-plan header h3 { margin:0; color:#00395E; }
+  .bl-price { font-size:24px; font-weight:700; color:#00395E; margin:6px 0 4px; }
+  .bl-price small { font-size:12px; color:#6b7280; font-weight:500; }
+  .bl-badge { position:absolute; top:10px; right:10px; background:#00A8E8; color:#fff; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+  .bl-plan ul { padding-left:18px; font-size:13px; color:#374151; }
+  .bl-plan ul li { margin:4px 0; }
+  .bl-active { display:grid; grid-template-columns:2fr 1fr; gap:14px; }
+  @media (max-width: 760px) { .bl-active { grid-template-columns:1fr; } }
+  .bl-active-card, .bl-active-side, .bl-pay-card { background:#fff; border:1px solid #e1e6ec; border-radius:10px; padding:14px; }
+  .bl-active-card h3 { margin:8px 0 2px; color:#00395E; }
+  .badge { padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .badge-active { background:#d1f3e0; color:#0a6b3a; }
+  .bl-active-meta { list-style:none; padding:0; margin:12px 0 0; }
+  .bl-active-meta li { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eef2f7; font-size:13px; }
+  .bl-active-meta li:last-child { border-bottom:0; }
+  .bl-active-meta span { color:#6b7280; }
+  .bl-active-meta strong { color:#00395E; }
+  .bl-active-actions { margin-top:10px; display:flex; gap:8px; }
+  .bl-usage { list-style:none; padding:0; margin:0; }
+  .bl-usage li { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eef2f7; font-size:13px; }
+  .bl-usage li:last-child { border-bottom:0; }
+  .bl-usage span { color:#6b7280; } .bl-usage strong { color:#00395E; }
+  .bl-pay { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+  .bl-pay-card strong { color:#00395E; display:block; margin-bottom:4px; }
+  .muted { color:#6b7280; }
+  .small { font-size:12px; }
+</style>
+
+{% include 'adp-shell-close' %}

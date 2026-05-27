@@ -1,0 +1,33 @@
+{
+  "EnvironmentVariables": [
+    { "SchemaName": "adp_AzureStorageApiBase", "Value": "https://example.azure-api.net/storage" },
+    { "SchemaName": "adp_AzureStorageApiKey", "Value": "__SET_SECURELY__" },
+    { "SchemaName": "adp_AzureStorageContainerBase", "Value": "https://account.blob.core.windows.net" },
+    { "SchemaName": "adp_PortalUrl", "Value": "https://accountantportal.powerappsportals.com" },
+    { "SchemaName": "adp_RdpFunctionBaseUrl", "Value": "https://adp-rdp-fn.azurewebsites.net" },
+    { "SchemaName": "adp_RdpFunctionKey", "Value": "__SET_SECURELY__" },
+    { "SchemaName": "adp_IngestionMailbox", "Value": "inbox@contoso.com" },
+    { "SchemaName": "adp_UseAIBuilder", "Value": "true" },
+    { "SchemaName": "adp_AIBuilderModelId", "Value": "__MODEL_ID__" },
+    { "SchemaName": "adp_DocIntelEndpoint", "Value": "https://<doc-intel>.cognitiveservices.azure.com" },
+    { "SchemaName": "adp_DocIntelKey", "Value": "__SET_SECURELY__" },
+    { "SchemaName": "adp_SharePointSiteUrl", "Value": "https://intelliblend.sharepoint.com/sites/Smartsoft646" },
+    { "SchemaName": "adp_PowerBiWorkspaceId", "Value": "03623be0-6e17-43ba-9fe5-947e9b67c823" },
+    { "SchemaName": "adp_PowerBiReportId", "Value": "__SET_REPORT_ID__" },
+    { "SchemaName": "adp_CopilotBotId", "Value": "__SET_COPILOT_BOT_ID__" },
+    { "SchemaName": "adp_CopilotTenantId", "Value": "__SET_TENANT_ID__" },
+    { "SchemaName": "adp_CopilotTokenEndpoint", "Value": "__SET_DIRECTLINE_TOKEN_ENDPOINT__" },
+    { "SchemaName": "adp_BundleCatalogUrl", "Value": "/power-platform/catalog/bundles.json" },
+    { "SchemaName": "adp_SubscriptionInvoiceEmail", "Value": "billing@contoso.com" },
+    { "SchemaName": "adp_WhatsAppAccessToken", "Value": "__SET_SECURELY__" },
+    { "SchemaName": "adp_TelegramBotToken", "Value": "__SET_SECURELY__" }
+  ],
+  "ConnectionReferences": [
+    { "LogicalName": "shared_commondataserviceforapps", "ConnectionId": "__DEV_DATAVERSE_CONNECTION_ID__", "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps" },
+    { "LogicalName": "shared_msgraph", "ConnectionId": "__DEV_GRAPH_CONNECTION_ID__", "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_msgraph" },
+    { "LogicalName": "shared_sharepointonline", "ConnectionId": "__DEV_SHAREPOINT_CONNECTION_ID__", "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline" },
+    { "LogicalName": "shared_powerbi", "ConnectionId": "__DEV_POWERBI_CONNECTION_ID__", "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_powerbi" },
+    { "LogicalName": "shared_office365", "ConnectionId": "__DEV_OFFICE365_CONNECTION_ID__", "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_office365" },
+    { "LogicalName": "shared_aibuilder", "ConnectionId": "__DEV_AIBUILDER_CONNECTION_ID__", "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_aibuilder" }
+  ]
+}

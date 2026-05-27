@@ -1,0 +1,77 @@
+{
+  "currency": "INR",
+  "symbol": "₹",
+  "annualDiscountPercent": 15,
+  "bundles": [
+    {
+      "id": "tally-hosting",
+      "name": "Tally Hosting",
+      "tagline": "Secure cloud-based Tally access for your team.",
+      "monthly": 1499,
+      "annual": 14990,
+      "unit": "per user / month",
+      "features": [
+        "RDP-based Tally access with MFA",
+        "Per-user Tally session provisioning",
+        "Daily encrypted backups (30-day retention)",
+        "GST-ready data folder",
+        "Email + chat support (business hours)"
+      ],
+      "entitlements": ["tally.hosting", "tally.rdp", "tally.backup"]
+    },
+    {
+      "id": "m365-integration",
+      "name": "M365 Integration",
+      "tagline": "SharePoint documents, Outlook ingestion, Teams + Copilot.",
+      "monthly": 999,
+      "annual": 9990,
+      "unit": "per company / month",
+      "features": [
+        "SharePoint document workspace per company",
+        "Email inbox ingestion (Outlook / Graph)",
+        "WhatsApp + Telegram channels",
+        "Teams notifications",
+        "Single Sign-On via Microsoft Entra ID"
+      ],
+      "entitlements": ["m365.sharepoint", "m365.email", "m365.teams", "m365.sso"]
+    },
+    {
+      "id": "power-suite",
+      "name": "Power Query, Power BI, Power Automate & Workflow",
+      "tagline": "Automation, analytics, and reporting on top of your data.",
+      "monthly": 1799,
+      "annual": 17990,
+      "unit": "per company / month",
+      "features": [
+        "Embedded Power BI reports with Row-Level Security",
+        "Power Query connectors for Tally, banks, GST portal",
+        "Power Automate workflows (onboarding, ingestion, approvals)",
+        "Document AI extraction (AI Builder / Doc Intelligence)",
+        "Custom dashboards"
+      ],
+      "entitlements": ["powerbi.embed", "powerquery.connectors", "powerautomate.flows", "ai.docintel"]
+    },
+    {
+      "id": "all-in-one",
+      "name": "All-in-One",
+      "tagline": "Everything above, at the best value.",
+      "monthly": 3499,
+      "annual": 34990,
+      "unit": "per company / month",
+      "highlighted": true,
+      "features": [
+        "Tally Hosting (up to 5 users included)",
+        "M365 Integration (full)",
+        "Power Suite (full)",
+        "Priority 24x7 support",
+        "Quarterly business review"
+      ],
+      "entitlements": [
+        "tally.hosting", "tally.rdp", "tally.backup",
+        "m365.sharepoint", "m365.email", "m365.teams", "m365.sso",
+        "powerbi.embed", "powerquery.connectors", "powerautomate.flows", "ai.docintel",
+        "support.priority"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{% comment %}
+  ADP Portal Shell — OPEN
+  -----------------------
+  Persona-aware left-rail layout used by every page.
+
+  Inputs (assign before include):
+    nav_key       — string id of the active nav item ('dashboard','clients','inbox','service','insights','agents','billing','team','settings','operator-console','operator-firms','operator-catalog','operator-connectors','operator-health','operator-settings','client-home','client-inbox','client-docs','client-reports','client-engagements','client-billing','client-support','accountant-day','tools')
+    page_title    — string heading shown in the page header
+    breadcrumbs   — array of {label, href} OR pipe-separated string "Clients|/clients · Acme|/clients?company=…"
+    page_actions  — optional raw HTML rendered top-right of page header
+
+  This partial assumes adp-user-context has already run so adp_role,
+  adp_personagroup, adp_companyid, adp_firmname are available.
+{% endcomment %}
+
+{% comment %} ---- Resolve persona group (fallback if user-context didn't set it) ---- {% endcomment %}
+{% assign __role_l = adp_role | downcase %}
+{% if adp_personagroup == '' or adp_personagroup == nil %}
+  {% if __role_l contains 'operator' or __role_l contains 'smartsoft' %}{% assign adp_personagroup = 'operator' %}
+  {% elsif __role_l contains 'firm admin' or __role_l contains 'firmadmin' %}{% assign adp_personagroup = 'firmadmin' %}
+  {% elsif __role_l contains 'admin' %}{% assign adp_personagroup = 'firmadmin' %}
+  {% elsif __role_l contains 'accountant' %}{% assign adp_personagroup = 'accountant' %}
+  {% else %}{% assign adp_personagroup = 'client' %}
+  {% endif %}
+{% endif %}
+
+{% assign adp_firmname = adp_firmname | default: 'Smartsoft Books LLP' %}
+{% assign nav_key = nav_key | default: '' %}
+{% assign page_title = page_title | default: '' %}
+{% assign page_actions = page_actions | default: '' %}
+
+<div class="adp-shell" data-persona="{{ adp_personagroup }}">
+
+  {% comment %} ---------- Top bar ---------- {% endcomment %}
+  <header class="adp-shell-top">
+    <button type="button" class="adp-shell-burger" aria-label="Toggle navigation" data-adp-burger>&#9776;</button>
+    <div class="adp-shell-brand">
+      <span class="adp-shell-firm-logo">{{ adp_firmname | slice: 0, 1 }}</span>
+      <div class="adp-shell-brand-text">
+        <strong>{{ adp_firmname }}</strong>
+        <span class="adp-shell-platform">Powered by Smartsoft ADP</span>
+      </div>
+    </div>
+
+    {% if adp_personagroup == 'operator' %}
+      <div class="adp-shell-switcher">
+        <label class="muted">Firm</label>
+        <select class="adp-shell-firm-switcher" id="adpFirmSwitcher">
+          <option value="">— All firms —</option>
+          <option value="firm-001">Smartsoft Books LLP</option>
+          <option value="firm-002">Northstar Accountants</option>
+          <option value="firm-003">Quill & Ledger</option>
+        </select>
+      </div>
+    {% elsif adp_personagroup == 'firmadmin' or adp_personagroup == 'accountant' %}
+      <div class="adp-shell-switcher">
+        <label class="muted">Client</label>
+        <select class="adp-shell-company-switcher" id="adpCompanySwitcher" data-adp-company="{{ adp_companyid }}">
+          <option value="">— All clients —</option>
+        </select>
+      </div>
+    {% endif %}
+
+    <div class="adp-shell-profile">
+      <span class="adp-shell-persona-badge persona-{{ adp_personagroup }}">
+        {% if adp_personagroup == 'operator' %}Smartsoft Operator
+        {% elsif adp_personagroup == 'firmadmin' %}Firm Admin
+        {% elsif adp_personagroup == 'accountant' %}Accountant
+        {% else %}Client
+        {% endif %}
+      </span>
+      <span class="adp-shell-user" id="adpShellUser">{{ user.fullname | default: 'Signed-out user' }}</span>
+    </div>
+  </header>
+
+  <div class="adp-shell-body">
+
+    {% comment %} ---------- Left rail ---------- {% endcomment %}
+    <aside class="adp-shell-rail" id="adpShellRail">
+      <nav>
+        {% if adp_personagroup == 'operator' %}
+          <a class="adp-nav-item {% if nav_key == 'operator-console' %}is-active{% endif %}"      href="/operator">          <span class="ico">&#127968;</span><span>Console</span></a>
+          <a class="adp-nav-item {% if nav_key == 'operator-firms' %}is-active{% endif %}"        href="/operator#firms">    <span class="ico">&#127970;</span><span>Firms</span></a>
+          <a class="adp-nav-item {% if nav_key == 'operator-catalog' %}is-active{% endif %}"      href="/operator#catalog">  <span class="ico">&#128214;</span><span>Catalog</span></a>
+          <a class="adp-nav-item {% if nav_key == 'operator-connectors' %}is-active{% endif %}"   href="/operator#connectors"><span class="ico">&#128279;</span><span>Connectors</span></a>
+          <a class="adp-nav-item {% if nav_key == 'operator-health' %}is-active{% endif %}"       href="/operator#health">   <span class="ico">&#128202;</span><span>Platform Health</span></a>
+          <a class="adp-nav-item {% if nav_key == 'operator-settings' %}is-active{% endif %}"     href="/operator#settings"> <span class="ico">&#9881;</span><span>Settings</span></a>
+
+        {% elsif adp_personagroup == 'firmadmin' %}
+          <a class="adp-nav-item {% if nav_key == 'dashboard' %}is-active{% endif %}" href="/dashboard">       <span class="ico">&#127968;</span><span>Dashboard</span></a>
+          <a class="adp-nav-item {% if nav_key == 'clients' %}is-active{% endif %}"   href="/clients">         <span class="ico">&#127970;</span><span>Clients</span></a>
+          <a class="adp-nav-item {% if nav_key == 'team' %}is-active{% endif %}"      href="/clients#team">    <span class="ico">&#128101;</span><span>Team</span></a>
+          <a class="adp-nav-item {% if nav_key == 'inbox' %}is-active{% endif %}"     href="/inbox">           <span class="ico">&#128231;</span><span>Inbox</span></a>
+          <a class="adp-nav-item {% if nav_key == 'service' %}is-active{% endif %}"   href="/service-delivery"><span class="ico">&#128203;</span><span>Service Delivery</span></a>
+          <a class="adp-nav-item {% if nav_key == 'insights' %}is-active{% endif %}"  href="/insights">        <span class="ico">&#128200;</span><span>Insights</span></a>
+          <a class="adp-nav-item {% if nav_key == 'agents' %}is-active{% endif %}"    href="/agents">          <span class="ico">&#129302;</span><span>Agents</span></a>
+          <a class="adp-nav-item {% if nav_key == 'billing' %}is-active{% endif %}"   href="/billing">         <span class="ico">&#128179;</span><span>Billing</span></a>
+          <a class="adp-nav-item {% if nav_key == 'settings' %}is-active{% endif %}"  href="/settings">        <span class="ico">&#9881;</span><span>Settings</span></a>
+
+        {% elsif adp_personagroup == 'accountant' %}
+          <a class="adp-nav-item {% if nav_key == 'accountant-day' %}is-active{% endif %}" href="/dashboard">     <span class="ico">&#9728;</span><span>My Day</span></a>
+          <a class="adp-nav-item {% if nav_key == 'clients' %}is-active{% endif %}"        href="/clients">       <span class="ico">&#127970;</span><span>Clients</span></a>
+          <a class="adp-nav-item {% if nav_key == 'inbox' %}is-active{% endif %}"          href="/inbox">         <span class="ico">&#128231;</span><span>Inbox</span></a>
+          <a class="adp-nav-item {% if nav_key == 'service' %}is-active{% endif %}"        href="/service-delivery"><span class="ico">&#128203;</span><span>Service Delivery</span></a>
+          <a class="adp-nav-item {% if nav_key == 'insights' %}is-active{% endif %}"       href="/insights">      <span class="ico">&#128200;</span><span>Insights</span></a>
+          <a class="adp-nav-item {% if nav_key == 'documents' %}is-active{% endif %}"      href="/documents">     <span class="ico">&#128193;</span><span>Documents</span></a>
+          <div class="adp-nav-section">Tools</div>
+          <a class="adp-nav-item {% if nav_key == 'launch-tally' %}is-active{% endif %}"   href="/launch-tally">  <span class="ico">&#128187;</span><span>Launch Tally</span></a>
+          <a class="adp-nav-item {% if nav_key == 'agents' %}is-active{% endif %}"         href="/agents">        <span class="ico">&#129302;</span><span>Agents</span></a>
+          <a class="adp-nav-item {% if nav_key == 'teams' %}is-active{% endif %}"          href="/teams">         <span class="ico">&#128172;</span><span>Teams</span></a>
+
+        {% else %}{% comment %} client {% endcomment %}
+          <a class="adp-nav-item {% if nav_key == 'client-home' %}is-active{% endif %}"        href="/dashboard">       <span class="ico">&#127968;</span><span>Home</span></a>
+          <a class="adp-nav-item {% if nav_key == 'client-inbox' %}is-active{% endif %}"       href="/inbox">           <span class="ico">&#128231;</span><span>Inbox</span></a>
+          <a class="adp-nav-item {% if nav_key == 'client-docs' %}is-active{% endif %}"        href="/documents">       <span class="ico">&#128193;</span><span>Documents</span></a>
+          <a class="adp-nav-item {% if nav_key == 'client-reports' %}is-active{% endif %}"     href="/insights">        <span class="ico">&#128200;</span><span>Reports</span></a>
+          <a class="adp-nav-item {% if nav_key == 'client-engagements' %}is-active{% endif %}" href="/service-delivery"><span class="ico">&#128203;</span><span>Engagements</span></a>
+          <a class="adp-nav-item {% if nav_key == 'client-billing' %}is-active{% endif %}"     href="/billing">         <span class="ico">&#128179;</span><span>Subscription</span></a>
+          <a class="adp-nav-item {% if nav_key == 'client-support' %}is-active{% endif %}"     href="/agents">          <span class="ico">&#128172;</span><span>Support</span></a>
+        {% endif %}
+      </nav>
+
+      <div class="adp-shell-rail-foot">
+        <small class="muted">v2026.05 · ADP</small>
+      </div>
+    </aside>
+
+    {% comment %} ---------- Main column ---------- {% endcomment %}
+    <main class="adp-shell-main">
+      {% if breadcrumbs %}
+      <nav class="adp-shell-crumbs" aria-label="Breadcrumb">
+        {% assign __crumbs = breadcrumbs | split: ' · ' %}
+        {% for c in __crumbs %}
+          {% assign __parts = c | split: '|' %}
+          {% if __parts.size > 1 and forloop.last == false %}
+            <a href="{{ __parts[1] }}">{{ __parts[0] }}</a>
+          {% else %}
+            <span class="is-current">{{ __parts[0] }}</span>
+          {% endif %}
+          {% unless forloop.last %}<span class="sep">&rsaquo;</span>{% endunless %}
+        {% endfor %}
+      </nav>
+      {% endif %}
+
+      {% if page_title or page_actions %}
+      <div class="adp-shell-page-head">
+        {% if page_title %}<h1 class="adp-shell-page-title">{{ page_title }}</h1>{% endif %}
+        {% if page_actions %}<div class="adp-shell-page-actions">{{ page_actions }}</div>{% endif %}
+      </div>
+      {% endif %}
+
+      <div class="adp-shell-content">

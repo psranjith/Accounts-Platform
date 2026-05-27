@@ -1,0 +1,135 @@
+{
+  "name": "Flow_IngestEmail",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_IngestEmail",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "When_New_Email_Arrives": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_office365"
+            },
+            "operationId": "OnNewEmailV3",
+            "parameters": {
+              "folderPath": "Inbox",
+              "mailboxAddress": "@{parameters('adp_IngestionMailbox')}"
+            }
+          }
+        }
+      },
+      "actions": {
+        "Classify_Document": {
+          "type": "If",
+          "expression": {
+            "equals": [
+              "@{parameters('adp_UseAIBuilder')}",
+              true
+            ]
+          },
+          "actions": {
+            "AIBuilder_Classify": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionReferenceName": "shared_aibuilder"
+                },
+                "operationId": "Predict",
+                "parameters": {
+                  "modelId": "@{parameters('adp_AIBuilderModelId')}"
+                }
+              }
+            }
+          },
+          "else": {
+            "actions": {
+              "Azure_Doc_Intelligence": {
+                "type": "Http",
+                "inputs": {
+                  "method": "POST",
+                  "uri": "@{parameters('adp_DocIntelEndpoint')}",
+                  "headers": {
+                    "Ocp-Apim-Subscription-Key": "@{parameters('adp_DocIntelKey')}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Upload_To_SharePoint": {
+          "runAfter": {
+            "Classify_Document": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_sharepointonline"
+            },
+            "operationId": "CreateFile",
+            "parameters": {
+              "dataset": "@{parameters('adp_SharePointSiteUrl')}",
+              "folderPath": "/Invoices",
+              "name": "@{triggerBody()?['subject']}-@{ticks(utcNow())}.pdf",
+              "body": "@{triggerBody()?['body']}
+"
+            }
+          }
+        },
+        "Create_Ingestion_Record": {
+          "runAfter": {
+            "Upload_To_SharePoint": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "connectionReferenceName": "shared_commondataserviceforapps"
+            },
+            "operationId": "CreateRecord",
+            "parameters": {
+              "entityName": "adp_dataingestions",
+              "item/adp_name": "@{triggerBody()?['subject']}",
+              "item/adp_channel": 100000000,
+              "item/adp_sender": "@{triggerBody()?['from']}",
+              "item/adp_fileurl": "@{body('Upload_To_SharePoint')?['Path']}",
+              "item/adp_extractedmetadata": "@{string(outputs('Classify_Document'))}",
+              "item/adp_status": 100000001,
+              "item/adp_receivedon": "@{utcNow()}"
+            }
+          }
+        }
+      },
+      "parameters": {
+        "adp_IngestionMailbox": {
+          "type": "String"
+        },
+        "adp_UseAIBuilder": {
+          "type": "Bool"
+        },
+        "adp_AIBuilderModelId": {
+          "type": "String"
+        },
+        "adp_DocIntelEndpoint": {
+          "type": "String"
+        },
+        "adp_DocIntelKey": {
+          "type": "SecureString"
+        },
+        "adp_SharePointSiteUrl": {
+          "type": "String"
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_office365": {},
+      "shared_aibuilder": {},
+      "shared_sharepointonline": {},
+      "shared_commondataserviceforapps": {}
+    }
+  }
+}

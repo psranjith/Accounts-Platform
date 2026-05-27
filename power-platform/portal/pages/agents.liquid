@@ -1,0 +1,431 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'agents' %}
+{% assign page_title = 'Agents' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Agents' %}
+{% include 'adp-shell-open' %}
+
+{% comment %} Smart Agent hero — merged from former /assistant page. {% endcomment %}
+<section class="sa-hero">
+  <div class="sa-hero-text">
+    <span class="sa-hero-eyebrow">Featured</span>
+    <h2>Smart Agent</h2>
+    <p>Ask anything about your engagements, GST positions, Tally data or client policies. Smart Agent grounds answers in your firm's catalog and the active client's documents.</p>
+    <div class="sa-hero-actions">
+      <button class="btn btn-primary" type="button" id="saHeroLaunch">Open Smart Agent</button>
+      <a class="btn btn-link" href="#smart-agent">Learn more</a>
+    </div>
+  </div>
+  <div class="sa-hero-visual" aria-hidden="true">
+    <div class="sa-bubble sa-b1">"Summarise GSTR-3B for Acme last quarter."</div>
+    <div class="sa-bubble sa-b2">"Open tasks closing this week?"</div>
+    <div class="sa-bubble sa-b3">"Draft reply to GSTN notice for Beta."</div>
+  </div>
+</section>
+
+<style>
+  .sa-hero { display:grid; grid-template-columns:1.4fr 1fr; gap:18px; background:linear-gradient(135deg,#00395E 0%,#00638a 60%,#00A8E8 100%); color:#fff; border-radius:12px; padding:22px 26px; margin-bottom:18px; }
+  .sa-hero-eyebrow { display:inline-block; background:rgba(255,255,255,.18); padding:2px 10px; border-radius:999px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+  .sa-hero h2 { margin:8px 0 6px; font-size:28px; }
+  .sa-hero p { margin:0 0 12px; opacity:.92; max-width:540px; }
+  .sa-hero-actions { display:flex; gap:10px; align-items:center; }
+  .sa-hero-actions .btn-primary { background:#fff; color:#00395E; border:0; }
+  .sa-hero-actions .btn-link { color:#fff; text-decoration:underline; }
+  .sa-hero-visual { position:relative; min-height:120px; }
+  .sa-bubble { position:absolute; background:rgba(255,255,255,.16); padding:6px 12px; border-radius:14px; font-size:13px; backdrop-filter:blur(4px); }
+  .sa-b1 { top:6px;  left:0;   } .sa-b2 { top:46px; left:60px; } .sa-b3 { top:86px; left:18px; }
+  @media (max-width: 760px) { .sa-hero { grid-template-columns:1fr; } .sa-hero-visual { display:none; } }
+</style>
+
+<script>
+  document.getElementById('saHeroLaunch') && document.getElementById('saHeroLaunch').addEventListener('click', function () {
+    var el = document.querySelector('[data-key="quote-prep"]');
+    if (el) { el.scrollIntoView({ behavior:'smooth', block:'center' }); el.style.outline = '2px solid #00A8E8'; setTimeout(function(){ el.style.outline=''; }, 1800); }
+  });
+</script>
+
+{% comment %}
+  Agents catalog & launcher
+  -------------------------
+  Single page for all AI agents available to the platform:
+   - Microsoft built-in agents (Analyst, Researcher, Sales, Facilitator,
+     Skills, etc.) - opened in M365 Copilot via deep link.
+   - Custom Copilot Studio agents (Smartsoft Quote Prep, GST Helper, Audit
+     Reviewer, Tally Q&A) - embedded in-page using Bot Framework Web Chat
+     against a Direct Line token obtained from the agent's conversationsUrl
+     (same pattern as the Smart Agent page).
+
+  Microsoft built-in agents require an eligible Microsoft 365 Copilot
+  licence on the signed-in user; custom agents only need access to the
+  Copilot Studio agent.
+
+  Role-aware:
+    Accountant - can enable/disable agents per client and across portfolio.
+    Admin      - can enable/disable agents for own company.
+    Client     - read-only list of enabled agents.
+{% endcomment %}
+
+{% assign role_norm = adp_role | downcase %}
+{% assign is_accountant = false %}
+{% assign is_admin      = false %}
+{% if role_norm contains 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if role_norm contains 'admin'      %}{% assign is_admin      = true %}{% endif %}
+{% assign can_manage = false %}
+{% if is_accountant or is_admin %}{% assign can_manage = true %}{% endif %}
+
+<section class="agents-tab">
+  <header class="ag-header">
+    <h2>Agents</h2>
+    <p class="ag-meta">
+      Microsoft 365 built-in agents and Smartsoft custom Copilot Studio agents available to this workspace.
+      {% if is_accountant %}<br /><strong>Accountant view:</strong> enable agents per client.{% endif %}
+    </p>
+  </header>
+
+  <div class="ag-toolbar">
+    <input type="search" id="agFilter" placeholder="Filter by name, capability, vendor..." />
+    <select id="agVendor">
+      <option value="">All vendors</option>
+      <option>Microsoft</option>
+      <option>Smartsoft</option>
+    </select>
+    <select id="agCategory">
+      <option value="">All categories</option>
+      <option>Analysis</option>
+      <option>Research</option>
+      <option>Productivity</option>
+      <option>Finance</option>
+      <option>Compliance</option>
+      <option>Sales</option>
+    </select>
+  </div>
+
+  <div class="ag-grid" id="agGrid">
+    <!-- Microsoft built-in agents -->
+    <article class="ag-card ms-card" data-vendor="Microsoft" data-cat="Analysis" data-key="analyst">
+      <header>
+        <div class="ag-logo ms"><svg width="22" height="22" viewBox="0 0 23 23" fill="currentColor"><path d="M11 1H1v10h10V1zm11 0h-10v10h10V1zM11 12H1v10h10V12zm11 0h-10v10h10V12z"/></svg></div>
+        <div>
+          <strong>Analyst</strong>
+          <div class="muted">Microsoft 365 Copilot &middot; Built-in</div>
+        </div>
+        <span class="badge badge-ok">Available</span>
+      </header>
+      <p>Reasoning agent that analyses spreadsheets, financial data and ad-hoc tables. Writes Python under the hood, shows its working, produces charts.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Microsoft 365 Copilot</strong></li>
+        <li>Best for: P&amp;L analysis, GST reconciliation, variance reports</li>
+        <li>Data scope: files you provide in the chat</li>
+      </ul>
+      <div class="ag-actions">
+        <a class="btn btn-primary" href="https://m365.cloud.microsoft/chat/?agentId=analyst" target="_blank" rel="noopener">Open in Copilot</a>
+        <button class="btn btn-default" type="button" data-act="enable" data-agent="analyst">{% if can_manage %}Enable for client{% endif %}</button>
+      </div>
+    </article>
+
+    <article class="ag-card ms-card" data-vendor="Microsoft" data-cat="Research" data-key="researcher">
+      <header>
+        <div class="ag-logo ms"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.47 10.88l4.83 4.83 1.41-1.41-4.83-4.83A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg></div>
+        <div>
+          <strong>Researcher</strong>
+          <div class="muted">Microsoft 365 Copilot &middot; Built-in</div>
+        </div>
+        <span class="badge badge-ok">Available</span>
+      </header>
+      <p>Deep-research agent that pulls from the web and your M365 tenant (SharePoint, OneDrive, email) to produce structured, cited briefings.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Microsoft 365 Copilot</strong></li>
+        <li>Best for: client brief packs, market research, due diligence</li>
+        <li>Data scope: web + your tenant content</li>
+      </ul>
+      <div class="ag-actions">
+        <a class="btn btn-primary" href="https://m365.cloud.microsoft/chat/?agentId=researcher" target="_blank" rel="noopener">Open in Copilot</a>
+        <button class="btn btn-default" type="button" data-act="enable" data-agent="researcher">{% if can_manage %}Enable for client{% endif %}</button>
+      </div>
+    </article>
+
+    <article class="ag-card ms-card" data-vendor="Microsoft" data-cat="Productivity" data-key="facilitator">
+      <header>
+        <div class="ag-logo ms"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M2 6h14v2H2zM2 11h14v2H2zM2 16h10v2H2zM18 6h4v12h-4z"/></svg></div>
+        <div>
+          <strong>Facilitator</strong>
+          <div class="muted">Microsoft 365 Copilot &middot; Built-in</div>
+        </div>
+        <span class="badge badge-ok">Available</span>
+      </header>
+      <p>Takes meeting notes in real time during Teams calls, captures decisions and action items, follows up via chat.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Microsoft 365 Copilot</strong></li>
+        <li>Best for: client review calls, audit walkthroughs</li>
+        <li>Data scope: invited Teams meetings</li>
+      </ul>
+      <div class="ag-actions">
+        <a class="btn btn-primary" href="https://m365.cloud.microsoft/chat/?agentId=facilitator" target="_blank" rel="noopener">Open in Copilot</a>
+        <button class="btn btn-default" type="button" data-act="enable" data-agent="facilitator">{% if can_manage %}Enable for client{% endif %}</button>
+      </div>
+    </article>
+
+    <article class="ag-card ms-card" data-vendor="Microsoft" data-cat="Productivity" data-key="skills">
+      <header>
+        <div class="ag-logo ms"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 7l10 5 10-5-10-5zm0 8.5L4.21 6.55 12 2.6l7.79 3.95L12 10.5zM2 17l10 5 10-5v-5l-10 5L2 12v5z"/></svg></div>
+        <div>
+          <strong>Skills agent</strong>
+          <div class="muted">Microsoft 365 Copilot &middot; Built-in</div>
+        </div>
+        <span class="badge badge-ok">Available</span>
+      </header>
+      <p>Discovers expertise inside your org from Viva Skills and recommends colleagues for a task.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Microsoft 365 Copilot + Viva</strong></li>
+        <li>Best for: routing engagements to the right accountant</li>
+        <li>Data scope: Viva Insights skills profile</li>
+      </ul>
+      <div class="ag-actions">
+        <a class="btn btn-primary" href="https://m365.cloud.microsoft/chat/?agentId=skills" target="_blank" rel="noopener">Open in Copilot</a>
+        <button class="btn btn-default" type="button" data-act="enable" data-agent="skills">{% if can_manage %}Enable for client{% endif %}</button>
+      </div>
+    </article>
+
+    <article class="ag-card ms-card" data-vendor="Microsoft" data-cat="Sales" data-key="sales">
+      <header>
+        <div class="ag-logo ms"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v4H3zM3 9h12v12H3zM17 9h4v12h-4z"/></svg></div>
+        <div>
+          <strong>Sales Agent</strong>
+          <div class="muted">Dynamics 365 / Copilot for Sales</div>
+        </div>
+        <span class="badge">Add-on</span>
+      </header>
+      <p>Researches leads, drafts outreach, qualifies pipeline, summarises CRM activity. Requires Dynamics 365 Sales.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Copilot for Sales</strong></li>
+        <li>Best for: practice growth, new client acquisition</li>
+        <li>Data scope: Dynamics 365 Sales</li>
+      </ul>
+      <div class="ag-actions">
+        <a class="btn btn-default" href="https://www.microsoft.com/en-us/dynamics-365/products/copilot-for-sales" target="_blank" rel="noopener">Learn more</a>
+        <button class="btn btn-default" type="button" data-act="enable" data-agent="sales">{% if can_manage %}Enable for client{% endif %}</button>
+      </div>
+    </article>
+
+    <!-- Smartsoft custom (Copilot Studio) agents -->
+    <article class="ag-card ss-card" data-vendor="Smartsoft" data-cat="Finance" data-key="quote-prep">
+      <header>
+        <div class="ag-logo ss"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v4H4zm0 6h16v4H4zm0 6h10v4H4z"/></svg></div>
+        <div>
+          <strong>Quote Preparation</strong>
+          <div class="muted">Smartsoft &middot; Copilot Studio</div>
+        </div>
+        <span class="badge badge-ok">Enabled</span>
+      </header>
+      <p>Generates technical comparisons and quotes from the product catalog and a client brief. Already wired in the Smart Agent page.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Power Platform</strong></li>
+        <li>Best for: proposals, scope-of-work drafts</li>
+        <li>Data scope: catalog + uploaded RFP</li>
+      </ul>
+      <div class="ag-actions">
+        <button class="btn btn-primary" type="button" data-act="launch" data-agent="quote-prep">Launch in-page</button>
+        <a class="btn btn-default" href="/assistant">Open Smart Agent</a>
+      </div>
+    </article>
+
+    <article class="ag-card ss-card" data-vendor="Smartsoft" data-cat="Compliance" data-key="gst-helper">
+      <header>
+        <div class="ag-logo ss"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg></div>
+        <div>
+          <strong>GST Helper</strong>
+          <div class="muted">Smartsoft &middot; Copilot Studio (planned)</div>
+        </div>
+        <span class="badge">Setup needed</span>
+      </header>
+      <p>Answers GST questions grounded in CBIC notifications and the current GST law. Drafts reply emails to GSTN notices.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Power Platform</strong></li>
+        <li>Best for: GST notice reply, ITC clarification, GSTR-2B mismatches</li>
+        <li>Data scope: GSTN feeds + tenant SharePoint</li>
+      </ul>
+      <div class="ag-actions">
+        <button class="btn btn-default" type="button" data-act="configure" data-agent="gst-helper">Configure</button>
+      </div>
+    </article>
+
+    <article class="ag-card ss-card" data-vendor="Smartsoft" data-cat="Compliance" data-key="audit-reviewer">
+      <header>
+        <div class="ag-logo ss"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14-5-5 1.4-1.4L10 14.2l7.6-7.6L19 8l-9 9z"/></svg></div>
+        <div>
+          <strong>Audit Reviewer</strong>
+          <div class="muted">Smartsoft &middot; Copilot Studio (planned)</div>
+        </div>
+        <span class="badge">Setup needed</span>
+      </header>
+      <p>Walks an audit working-paper file, flags missing schedules, ties balances to TB, drafts a review memo for the partner.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Power Platform</strong></li>
+        <li>Best for: statutory audit prep &amp; partner review</li>
+        <li>Data scope: SharePoint working papers folder</li>
+      </ul>
+      <div class="ag-actions">
+        <button class="btn btn-default" type="button" data-act="configure" data-agent="audit-reviewer">Configure</button>
+      </div>
+    </article>
+
+    <article class="ag-card ss-card" data-vendor="Smartsoft" data-cat="Finance" data-key="tally-qa">
+      <header>
+        <div class="ag-logo ss"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-8l-2-2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM3 6h7.17l2 2H21v10H3V6z"/></svg></div>
+        <div>
+          <strong>Tally Q&amp;A</strong>
+          <div class="muted">Smartsoft &middot; Copilot Studio (planned)</div>
+        </div>
+        <span class="badge">Setup needed</span>
+      </header>
+      <p>Natural-language queries over the client's Tally data via the tally-extract Power Query. Answers "What is Acme's debtors over 90 days?" etc.</p>
+      <ul class="ag-meta-list">
+        <li>License: <strong>Power Platform + Tally hosting</strong></li>
+        <li>Best for: ad-hoc ledger queries from the inbox</li>
+        <li>Data scope: tenant Tally data folder</li>
+      </ul>
+      <div class="ag-actions">
+        <button class="btn btn-default" type="button" data-act="configure" data-agent="tally-qa">Configure</button>
+      </div>
+    </article>
+  </div>
+
+  <!-- In-page chat panel for custom agents -->
+  <aside id="agChatPanel" class="ag-chat" hidden>
+    <div class="ag-chat-head">
+      <strong id="agChatTitle">Agent</strong>
+      <button class="btn btn-link" type="button" id="agChatClose">Close</button>
+    </div>
+    <div id="ag-copilot-diag" class="copilot-diag" hidden></div>
+    <div id="ag-copilot-webchat" class="copilot-webchat" role="complementary" aria-label="Custom agent"></div>
+  </aside>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/botframework-webchat@4.16.0/dist/webchat.js" onerror="this.onerror=null;this.src='https://unpkg.com/botframework-webchat@4.16.0/dist/webchat.js';"></script>
+<script>
+  (function () {
+    // ---- filtering ----
+    var f  = document.getElementById('agFilter');
+    var v  = document.getElementById('agVendor');
+    var c  = document.getElementById('agCategory');
+    function apply() {
+      var q = (f.value || '').toLowerCase();
+      document.querySelectorAll('.ag-card').forEach(function (card) {
+        var text = card.textContent.toLowerCase();
+        var passQ = !q || text.indexOf(q) !== -1;
+        var passV = !v.value || card.getAttribute('data-vendor') === v.value;
+        var passC = !c.value || card.getAttribute('data-cat')    === c.value;
+        card.style.display = (passQ && passV && passC) ? '' : 'none';
+      });
+    }
+    [f, v, c].forEach(function (el) { el && el.addEventListener('input', apply); });
+    if (v) v.addEventListener('change', apply);
+    if (c) c.addEventListener('change', apply);
+
+    // ---- enable / configure stubs ----
+    document.querySelectorAll('[data-act]').forEach(function (btn) {
+      var act   = btn.getAttribute('data-act');
+      if (act !== 'enable' && act !== 'configure') return;
+      btn.addEventListener('click', function () {
+        var agent = btn.getAttribute('data-agent');
+        if (act === 'enable') {
+          alert('Enable "' + agent + '" for this client (stub). Will be wired to Flow_ManageAgents in production.');
+        } else {
+          alert('Configure "' + agent + '" (stub). Will open Copilot Studio in production.');
+        }
+      });
+    });
+
+    // ---- launch custom agent (Copilot Studio) in-page panel ----
+    var panel = document.getElementById('agChatPanel');
+    var titleEl = document.getElementById('agChatTitle');
+    var chatEl = document.getElementById('ag-copilot-webchat');
+    var diagEl = document.getElementById('ag-copilot-diag');
+    var booted = false;
+
+    function showDiag(level, html) { diagEl.hidden = false; diagEl.className = 'copilot-diag copilot-diag-' + level; diagEl.innerHTML = html; }
+
+    document.getElementById('agChatClose').addEventListener('click', function () {
+      panel.hidden = true;
+    });
+
+    document.querySelectorAll('[data-act="launch"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var key = btn.getAttribute('data-agent');
+        titleEl.textContent = (btn.closest('.ag-card').querySelector('strong').textContent) || ('Agent ' + key);
+        panel.hidden = false;
+        if (booted) return;
+        var cfg = (window.ADP_AUTH && window.ADP_AUTH.copilot) || null;
+        if (!cfg || !cfg.conversationsUrl) {
+          showDiag('warn', '<strong>Custom agent not configured.</strong> Add a <code>copilot</code> section to <code>preview/auth-config.js</code>.');
+          return;
+        }
+        if (!window.adpGraph || !window.adpGraph.isSignedIn()) {
+          showDiag('info', '<strong>Sign in to Microsoft 365</strong> (top right) to start the agent.');
+          return;
+        }
+        bootWebChat(cfg);
+      });
+    });
+
+    async function bootWebChat(cfg) {
+      try {
+        showDiag('info', '<strong>Loading chat client&hellip;</strong>');
+        // Acquire a Power Platform delegated token for the user.
+        var token = await window.adpGraph.getTokenFor(cfg.scopes);
+        var r = await fetch(cfg.conversationsUrl, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        if (!r.ok) throw new Error('conversationsUrl ' + r.status);
+        var j = await r.json();
+        if (!window.WebChat) throw new Error('Bot Framework Web Chat failed to load.');
+        window.WebChat.renderWebChat({
+          directLine: window.WebChat.createDirectLine({ token: j.token, streamUrl: j.streamUrl }),
+          userID: (window.adpGraph.account() || {}).localAccountId || 'preview-user',
+          locale: 'en-IN'
+        }, document.getElementById('ag-copilot-webchat'));
+        diagEl.hidden = true;
+        booted = true;
+      } catch (err) {
+        showDiag('error', '<strong>Could not start agent:</strong> ' + (err && err.message ? err.message : String(err)));
+      }
+    }
+  })();
+</script>
+
+<style>
+  .agents-tab .ag-header { margin-bottom: 18px; }
+  .agents-tab .ag-meta   { color: #6b7280; margin: 4px 0 0; font-size: 14px; }
+  .agents-tab .ag-toolbar { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+  .agents-tab .ag-toolbar input { flex: 1 1 240px; padding: 6px 8px; }
+
+  .agents-tab .ag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .agents-tab .ag-card { background: #fff; border: 1px solid #e1e6ec; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; }
+  .agents-tab .ms-card { border-left: 4px solid #0078D4; }
+  .agents-tab .ss-card { border-left: 4px solid #00A8E8; }
+  .agents-tab .ag-card header { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; }
+  .agents-tab .ag-logo { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #fff; }
+  .agents-tab .ag-logo.ms { background: #0078D4; }
+  .agents-tab .ag-logo.ss { background: #00395E; }
+  .agents-tab .ag-card .muted { color: #6b7280; font-size: 12px; }
+  .agents-tab .ag-card > p { color: #374151; font-size: 13.5px; margin: 10px 0; }
+
+  .agents-tab .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #e5e7eb; color: #374151; }
+  .agents-tab .badge-ok { background: #d1f3e0; color: #0a6b3a; }
+
+  .agents-tab .ag-meta-list { list-style: none; padding: 0; margin: 0 0 12px; font-size: 12.5px; color: #444; }
+  .agents-tab .ag-meta-list li { margin: 2px 0; }
+  .agents-tab .ag-actions { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+  .agents-tab .ag-actions .btn { flex: 0 0 auto; }
+
+  .agents-tab .ag-chat { position: fixed; right: 16px; bottom: 16px; width: 560px; max-width: 92vw; height: 70vh; background: #fff; border: 1px solid #d6dde6; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,.15); display: flex; flex-direction: column; overflow: hidden; z-index: 60; }
+  .agents-tab .ag-chat-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee; background: #f7f9fc; }
+  .agents-tab .copilot-webchat { flex: 1; min-height: 0; }
+  .agents-tab .copilot-diag { padding: 10px 12px; font-size: 13px; }
+  .agents-tab .copilot-diag-info  { background: #eff6ff; color: #1d4ed8; }
+  .agents-tab .copilot-diag-warn  { background: #fffbeb; color: #92400e; }
+  .agents-tab .copilot-diag-error { background: #fef2f2; color: #b42318; }
+</style>
+
+{% include 'adp-shell-close' %}

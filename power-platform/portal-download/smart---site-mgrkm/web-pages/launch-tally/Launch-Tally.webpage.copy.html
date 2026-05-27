@@ -1,0 +1,13 @@
+{% include 'adp-user-context' %}
+<section>
+  <h2>Launch Tally</h2>
+  {% if adp_companyid == '' %}
+    <p>Your account is not mapped to a company. Contact support.</p>
+  {% else %}
+    <p>Click below to request an RDP file for your company.</p>
+    <form method="post" action="/_api/cloudflow/v1.0/trigger/Flow_LaunchTally">
+      <input type="hidden" name="companyId" value="{{ adp_companyid }}" />
+      <button type="submit" class="btn btn-primary">Generate RDP File</button>
+    </form>
+  {% endif %}
+</section>

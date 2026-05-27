@@ -1,0 +1,380 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'teams' %}
+{% assign page_title = 'Microsoft Teams' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Teams' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Microsoft Teams workspace
+  -------------------------
+  Per-user Teams entry point. Microsoft blocks framing teams.microsoft.com
+  (X-Frame-Options + frame-ancestors CSP), so this page works in two modes:
+
+  - "Embed" tab: attempts the iframe and detects whether Teams loaded; if
+    blocked it shows a clear "open in Teams" panel instead.
+  - "Workspace" tab: a functional, supported alternative built on Microsoft
+    Graph + deep-links:
+      * Lists the signed-in user's recent chats (/me/chats)
+      * Lists the user's joined teams + channels (/me/joinedTeams)
+      * Lists today's calendar events (/me/calendarView)
+      * Deep-link buttons that launch the Teams desktop or web client
+        directly to the right chat / channel / call.
+
+  Microsoft Graph scopes needed (add to Entra app):
+    Chat.Read, Channel.ReadBasic.All, Team.ReadBasic.All, Calendars.Read
+{% endcomment %}
+
+<section class="teams-tab">
+  <header class="tm-header">
+    <h2>Microsoft Teams</h2>
+    <p class="muted tm-sub">
+      Chats, channels and meetings for <strong>{{ user.fullname | escape }}</strong>.
+      Microsoft Teams will open in a new tab or the desktop client; the live preview below uses your signed-in session.
+    </p>
+  </header>
+
+  <div class="tm-tabs" role="tablist">
+    <button type="button" class="tm-tab is-active" data-tab="workspace" role="tab" aria-selected="true">Workspace</button>
+    <button type="button" class="tm-tab"           data-tab="embed"     role="tab" aria-selected="false">Embed preview</button>
+    <button type="button" class="tm-tab"           data-tab="meet"      role="tab" aria-selected="false">Meet now</button>
+    <div class="tm-tab-actions">
+      <a class="btn btn-primary btn-sm" href="https://teams.microsoft.com/" target="_blank" rel="noopener">Open Teams web &nearr;</a>
+      <a class="btn btn-default btn-sm" href="msteams://" rel="noopener">Open Teams desktop</a>
+    </div>
+  </div>
+
+  <div id="tm-diag" class="copilot-diag" hidden></div>
+
+  <!-- WORKSPACE TAB (Graph-powered, the supported path) -->
+  <section class="tm-panel" data-panel="workspace">
+    <div class="tm-grid">
+      <article class="tm-col">
+        <header class="tm-col-head">
+          <h3>Recent chats</h3>
+          <button class="btn btn-link btn-sm" type="button" data-act="reload-chats">Refresh</button>
+        </header>
+        <div id="tmChats" class="tm-list">
+          <div class="placeholder">Sign in to load chats.</div>
+        </div>
+      </article>
+
+      <article class="tm-col">
+        <header class="tm-col-head">
+          <h3>My teams &amp; channels</h3>
+          <button class="btn btn-link btn-sm" type="button" data-act="reload-teams">Refresh</button>
+        </header>
+        <div id="tmTeams" class="tm-list">
+          <div class="placeholder">Sign in to load teams.</div>
+        </div>
+      </article>
+
+      <article class="tm-col">
+        <header class="tm-col-head">
+          <h3>Today's calendar</h3>
+          <button class="btn btn-link btn-sm" type="button" data-act="reload-cal">Refresh</button>
+        </header>
+        <div id="tmCalendar" class="tm-list">
+          <div class="placeholder">Sign in to load events.</div>
+        </div>
+      </article>
+    </div>
+
+    <aside class="tm-shortcuts">
+      <h4>Quick actions</h4>
+      <div class="tm-shortcut-grid">
+        <a class="tm-shortcut" target="_blank" rel="noopener" href="https://teams.microsoft.com/_#/conversations/A%20new%20chat?ctx=chat">
+          <span class="tm-shortcut-icon">+</span><span>New chat</span>
+        </a>
+        <a class="tm-shortcut" target="_blank" rel="noopener" href="https://teams.microsoft.com/_#/calendar">
+          <span class="tm-shortcut-icon">&#x1F4C5;</span><span>Calendar</span>
+        </a>
+        <a class="tm-shortcut" target="_blank" rel="noopener" href="https://teams.microsoft.com/_#/files">
+          <span class="tm-shortcut-icon">&#x1F4C1;</span><span>Files</span>
+        </a>
+        <a class="tm-shortcut" target="_blank" rel="noopener" href="https://teams.microsoft.com/l/meeting/new?subject=Client%20review">
+          <span class="tm-shortcut-icon">&#x1F4F9;</span><span>New meeting</span>
+        </a>
+        <a class="tm-shortcut" target="_blank" rel="noopener" href="https://teams.microsoft.com/_#/activity">
+          <span class="tm-shortcut-icon">&#x1F514;</span><span>Activity</span>
+        </a>
+        <a class="tm-shortcut" target="_blank" rel="noopener" href="https://teams.microsoft.com/_#/apps">
+          <span class="tm-shortcut-icon">&#x25A6;</span><span>Apps</span>
+        </a>
+      </div>
+    </aside>
+  </section>
+
+  <!-- EMBED TAB -->
+  <section class="tm-panel" data-panel="embed" hidden>
+    <div class="tm-embed-wrap">
+      <div id="tmEmbedFallback" class="tm-fallback" hidden>
+        <h3>Microsoft blocks embedding Teams in another site</h3>
+        <p>
+          <code>teams.microsoft.com</code> sends <code>X-Frame-Options: DENY</code> and a strict
+          <code>frame-ancestors</code> Content-Security-Policy header, so it cannot be displayed inside an iframe on a third-party page.
+          This is a Microsoft-enforced policy and cannot be worked around in the browser.
+        </p>
+        <p><strong>Supported alternatives</strong> &mdash; both wired on the <em>Workspace</em> tab above:</p>
+        <ul>
+          <li><strong>Deep-link</strong> into the user's Teams client (web or desktop) on the right chat / channel / meeting.</li>
+          <li><strong>Microsoft Graph API</strong> to read &amp; write Teams data (chats, messages, channels, calendar) and render it inside this portal.</li>
+        </ul>
+        <p>
+          For an "all-in-one" Teams experience, the inverse works: turn this portal into a Microsoft Teams app (Teams Toolkit / personal tab) so the accountant has the portal inside Teams.
+        </p>
+        <div class="tm-fallback-actions">
+          <a class="btn btn-primary" href="https://teams.microsoft.com/" target="_blank" rel="noopener">Open Teams web &nearr;</a>
+          <a class="btn btn-default" href="msteams://">Open Teams desktop</a>
+        </div>
+      </div>
+      <iframe
+        id="tmEmbedFrame"
+        class="tm-embed"
+        title="Microsoft Teams"
+        src="https://teams.microsoft.com/v2/"
+        referrerpolicy="no-referrer-when-downgrade"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-storage-access-by-user-activation"
+        allow="camera; microphone; display-capture; clipboard-read; clipboard-write; autoplay"></iframe>
+    </div>
+  </section>
+
+  <!-- MEET NOW TAB -->
+  <section class="tm-panel" data-panel="meet" hidden>
+    <div class="tm-meet">
+      <div class="tm-meet-form">
+        <h3>Start an instant meeting</h3>
+        <p class="muted">Generates a Teams meeting and opens it in a new tab. Share the join link from the Inbox via WhatsApp, Telegram or email.</p>
+        <label>Subject
+          <input type="text" id="tmMeetSubject" value="Client review &ndash; {{ adp_companyid }}" />
+        </label>
+        <label>Invite emails (comma-separated)
+          <input type="text" id="tmMeetEmails" placeholder="client@example.com, partner@example.com" />
+        </label>
+        <div class="tm-meet-actions">
+          <button class="btn btn-primary" type="button" id="tmMeetStart">Start meeting</button>
+          <button class="btn btn-default" type="button" id="tmMeetSchedule">Schedule for later&hellip;</button>
+        </div>
+        <div id="tmMeetResult" class="tm-meet-result" hidden></div>
+      </div>
+      <aside class="tm-meet-side">
+        <h4>Tip</h4>
+        <p class="muted">Recordings save automatically to the host's OneDrive. To enable client guests to join without a Teams account, turn on "Anonymous join" in your Teams meeting policy.</p>
+      </aside>
+    </div>
+  </section>
+</section>
+
+<script>
+  (function () {
+    var diag = document.getElementById('tm-diag');
+    function showDiag(level, html) { diag.hidden = false; diag.className = 'copilot-diag copilot-diag-' + level; diag.innerHTML = html; }
+    function hideDiag() { diag.hidden = true; }
+
+    var tabs   = document.querySelectorAll('.tm-tab');
+    var panels = document.querySelectorAll('.tm-panel');
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        tabs.forEach(function (x) { x.classList.remove('is-active'); x.setAttribute('aria-selected', 'false'); });
+        t.classList.add('is-active'); t.setAttribute('aria-selected', 'true');
+        var key = t.getAttribute('data-tab');
+        panels.forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== key; });
+        if (key === 'embed') checkEmbed();
+        if (key === 'workspace') loadAll();
+      });
+    });
+
+    var embedChecked = false;
+    function checkEmbed() {
+      if (embedChecked) return;
+      embedChecked = true;
+      var fr = document.getElementById('tmEmbedFrame');
+      var fb = document.getElementById('tmEmbedFallback');
+      setTimeout(function () {
+        var blocked = true;
+        try { if (fr.contentWindow && fr.contentWindow.location && fr.contentWindow.location.href) blocked = false; } catch (e) {}
+        if (blocked) { fb.hidden = false; fr.style.display = 'none'; }
+      }, 2500);
+    }
+
+    var graphScopes = ['Chat.Read', 'Team.ReadBasic.All', 'Channel.ReadBasic.All', 'Calendars.Read'];
+    function isSignedIn() { return window.adpGraph && window.adpGraph.isSignedIn && window.adpGraph.isSignedIn(); }
+
+    async function graphFetch(path) {
+      if (!isSignedIn()) throw new Error('Not signed in to Microsoft 365.');
+      var token = await window.adpGraph.getTokenFor(graphScopes);
+      var r = await fetch('https://graph.microsoft.com/v1.0' + path, {
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+      });
+      if (!r.ok) { var err = await r.text(); throw new Error('Graph ' + r.status + ': ' + err.slice(0, 220)); }
+      return r.json();
+    }
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+    function fmtTime(s) { try { return new Date(s).toLocaleString(); } catch (e) { return s || ''; } }
+
+    async function loadChats() {
+      var box = document.getElementById('tmChats');
+      box.innerHTML = '<div class="placeholder">Loading chats&hellip;</div>';
+      try {
+        var j = await graphFetch('/me/chats?$top=20&$expand=members');
+        if (j && Array.isArray(j.value)) {
+          j.value.sort(function(a, b){
+            var ta = Date.parse(a.lastUpdatedDateTime || a.lastMessagePreview && a.lastMessagePreview.createdDateTime || 0) || 0;
+            var tb = Date.parse(b.lastUpdatedDateTime || b.lastMessagePreview && b.lastMessagePreview.createdDateTime || 0) || 0;
+            return tb - ta;
+          });
+        }
+        if (!j.value || !j.value.length) { box.innerHTML = '<div class="placeholder">No chats found.</div>'; return; }
+        box.innerHTML = j.value.map(function (c) {
+          var title = c.topic || (c.members || []).map(function (m){ return m.displayName; }).slice(0, 3).join(', ') || 'Chat';
+          var when  = c.lastUpdatedDateTime ? fmtTime(c.lastUpdatedDateTime) : '';
+          var url   = 'https://teams.microsoft.com/_#/conversations/' + encodeURIComponent(c.id) + '?ctx=chat';
+          return '<a class="tm-row" target="_blank" rel="noopener" href="' + esc(url) + '">'
+            + '<span class="tm-row-avatar">' + esc((title.charAt(0) || '?').toUpperCase()) + '</span>'
+            + '<span class="tm-row-body"><strong>' + esc(title) + '</strong><span class="muted">' + esc(when) + '</span></span>'
+            + '</a>';
+        }).join('');
+      } catch (e) { box.innerHTML = '<div class="placeholder">' + esc(e.message) + '</div>'; }
+    }
+
+    async function loadTeams() {
+      var box = document.getElementById('tmTeams');
+      box.innerHTML = '<div class="placeholder">Loading teams&hellip;</div>';
+      try {
+        var j = await graphFetch('/me/joinedTeams');
+        if (!j.value || !j.value.length) { box.innerHTML = '<div class="placeholder">No teams.</div>'; return; }
+        var teams = j.value.slice(0, 8);
+        var chans = await Promise.all(teams.map(function (t) {
+          return graphFetch('/teams/' + t.id + '/channels').then(function (r) { return { team: t, channels: r.value || [] }; }).catch(function () { return { team: t, channels: [] }; });
+        }));
+        box.innerHTML = chans.map(function (g) {
+          var teamUrl = 'https://teams.microsoft.com/_#/teamDashboard/' + encodeURIComponent(g.team.id);
+          return '<div class="tm-team">'
+            + '<a class="tm-team-title" target="_blank" rel="noopener" href="' + esc(teamUrl) + '"><strong>' + esc(g.team.displayName) + '</strong></a>'
+            + '<ul class="tm-channels">'
+            + g.channels.slice(0, 6).map(function (c) {
+                var url = c.webUrl || ('https://teams.microsoft.com/_#/channel/' + encodeURIComponent(c.id));
+                return '<li><a target="_blank" rel="noopener" href="' + esc(url) + '"># ' + esc(c.displayName) + '</a></li>';
+              }).join('')
+            + '</ul></div>';
+        }).join('');
+      } catch (e) { box.innerHTML = '<div class="placeholder">' + esc(e.message) + '</div>'; }
+    }
+
+    async function loadCal() {
+      var box = document.getElementById('tmCalendar');
+      box.innerHTML = '<div class="placeholder">Loading events&hellip;</div>';
+      try {
+        var now = new Date();
+        var start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+        var end   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+        var j = await graphFetch('/me/calendarView?startDateTime=' + encodeURIComponent(start) + '&endDateTime=' + encodeURIComponent(end) + '&$top=25&$select=subject,start,end,onlineMeetingUrl,location,isAllDay');
+        if (j && Array.isArray(j.value)) {
+          j.value.sort(function(a,b){
+            var ta = Date.parse((a.start && a.start.dateTime) || 0) || 0;
+            var tb = Date.parse((b.start && b.start.dateTime) || 0) || 0;
+            return ta - tb;
+          });
+        }
+        if (!j.value || !j.value.length) { box.innerHTML = '<div class="placeholder">Nothing scheduled today.</div>'; return; }
+        box.innerHTML = j.value.map(function (e) {
+          var when = fmtTime(e.start && e.start.dateTime);
+          var join = e.onlineMeetingUrl ? '<a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="' + esc(e.onlineMeetingUrl) + '">Join</a>' : '';
+          return '<div class="tm-event"><div class="tm-event-body"><strong>' + esc(e.subject || '(no subject)') + '</strong>'
+            + '<span class="muted">' + esc(when) + (e.location && e.location.displayName ? ' &middot; ' + esc(e.location.displayName) : '') + '</span></div>'
+            + join + '</div>';
+        }).join('');
+      } catch (e) { box.innerHTML = '<div class="placeholder">' + esc(e.message) + '</div>'; }
+    }
+
+    function loadAll() {
+      if (!isSignedIn()) { showDiag('info', '<strong>Sign in to Microsoft 365</strong> (top right) to load your chats, teams and calendar.'); return; }
+      hideDiag();
+      loadChats(); loadTeams(); loadCal();
+    }
+
+    document.querySelector('[data-act="reload-chats"]').addEventListener('click', loadChats);
+    document.querySelector('[data-act="reload-teams"]').addEventListener('click', loadTeams);
+    document.querySelector('[data-act="reload-cal"]'  ).addEventListener('click', loadCal);
+    window.addEventListener('adp:signedin',  loadAll);
+    setTimeout(loadAll, 200);
+
+    document.getElementById('tmMeetStart').addEventListener('click', function () {
+      var subj = document.getElementById('tmMeetSubject').value || 'Meeting';
+      window.open('https://teams.microsoft.com/l/meeting/new?subject=' + encodeURIComponent(subj), '_blank', 'noopener');
+      var box = document.getElementById('tmMeetResult');
+      box.hidden = false;
+      box.innerHTML = 'Teams opened in a new tab to start the meeting. The Join link will appear there once the meeting starts.';
+    });
+    document.getElementById('tmMeetSchedule').addEventListener('click', function () {
+      var subj = document.getElementById('tmMeetSubject').value || 'Meeting';
+      window.open('https://outlook.office.com/calendar/0/deeplink/compose?subject=' + encodeURIComponent(subj) + '&allowonline=true', '_blank', 'noopener');
+    });
+  })();
+</script>
+
+<style>
+  .teams-tab { display: flex; flex-direction: column; gap: 14px; }
+  .teams-tab .tm-header { margin: 0; }
+  .teams-tab .tm-sub { margin: 4px 0 0; }
+
+  .teams-tab .tm-tabs { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--adp-border, #E4E8EE); margin-bottom: 4px; }
+  .teams-tab .tm-tab { appearance: none; background: transparent; border: 0; padding: 9px 16px; font: inherit; color: var(--adp-muted, #64748B); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s, border-color .15s; }
+  .teams-tab .tm-tab:hover { color: var(--adp-text, #0B1F33); }
+  .teams-tab .tm-tab.is-active { color: var(--adp-primary, #0B3B66); border-bottom-color: var(--adp-primary, #0B3B66); font-weight: 600; }
+  .teams-tab .tm-tab-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  .teams-tab .tm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .teams-tab .tm-col { background: #fff; border: 1px solid var(--adp-border, #E4E8EE); border-radius: var(--adp-radius, 8px); padding: 12px 14px; display: flex; flex-direction: column; min-height: 240px; }
+  .teams-tab .tm-col-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .teams-tab .tm-col-head h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--adp-muted, #64748B); }
+  .teams-tab .tm-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .teams-tab .tm-row { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 6px; text-decoration: none; color: inherit; transition: background .12s; }
+  .teams-tab .tm-row:hover { background: var(--adp-card-alt, #FAFBFC); text-decoration: none; }
+  .teams-tab .tm-row-avatar { width: 30px; height: 30px; background: linear-gradient(135deg, #5B5FC7, #464EB8); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; flex: 0 0 30px; }
+  .teams-tab .tm-row-body { display: flex; flex-direction: column; min-width: 0; }
+  .teams-tab .tm-row-body strong { font-size: 13px; color: var(--adp-secondary, #0B1F33); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .teams-tab .tm-row-body .muted { font-size: 11.5px; }
+
+  .teams-tab .tm-team { padding: 6px 0; border-bottom: 1px solid var(--adp-border, #E4E8EE); }
+  .teams-tab .tm-team:last-child { border-bottom: 0; }
+  .teams-tab .tm-team-title { color: var(--adp-secondary, #0B1F33); }
+  .teams-tab .tm-channels { list-style: none; padding: 4px 0 4px 6px; margin: 0; }
+  .teams-tab .tm-channels li { font-size: 12.5px; padding: 2px 0; }
+  .teams-tab .tm-channels a { color: var(--adp-text-2, #334155); }
+
+  .teams-tab .tm-event { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--adp-card-alt, #FAFBFC); border: 1px solid var(--adp-border, #E4E8EE); border-radius: 6px; }
+  .teams-tab .tm-event-body { display: flex; flex-direction: column; min-width: 0; }
+  .teams-tab .tm-event-body strong { font-size: 13px; color: var(--adp-secondary, #0B1F33); }
+  .teams-tab .tm-event-body .muted { font-size: 11.5px; }
+
+  .teams-tab .tm-shortcuts { background: #fff; border: 1px solid var(--adp-border, #E4E8EE); border-radius: var(--adp-radius, 8px); padding: 14px 16px; }
+  .teams-tab .tm-shortcuts h4 { margin: 0 0 10px; font-size: 12px; color: var(--adp-muted, #64748B); text-transform: uppercase; letter-spacing: .06em; }
+  .teams-tab .tm-shortcut-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .teams-tab .tm-shortcut { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; background: var(--adp-card-alt, #FAFBFC); border: 1px solid var(--adp-border, #E4E8EE); border-radius: 6px; color: var(--adp-text, #0B1F33); text-decoration: none; font-size: 12.5px; font-weight: 500; transition: border-color .15s, background .15s, transform .1s; }
+  .teams-tab .tm-shortcut:hover { border-color: #5B5FC7; background: #fff; transform: translateY(-1px); text-decoration: none; color: var(--adp-secondary, #0B1F33); }
+  .teams-tab .tm-shortcut-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #6264A7, #464EB8); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; }
+
+  .teams-tab .tm-embed-wrap { position: relative; }
+  .teams-tab .tm-embed { width: 100%; height: 70vh; min-height: 540px; border: 1px solid var(--adp-border, #E4E8EE); border-radius: var(--adp-radius, 8px); background: var(--adp-card-alt, #FAFBFC); }
+  .teams-tab .tm-fallback { background: #fff; border: 1px solid var(--adp-border, #E4E8EE); border-left: 4px solid #5B5FC7; border-radius: var(--adp-radius, 8px); padding: 18px 22px; }
+  .teams-tab .tm-fallback h3 { margin: 0 0 8px; }
+  .teams-tab .tm-fallback p { color: var(--adp-text-2, #334155); font-size: 13.5px; }
+  .teams-tab .tm-fallback ul { margin: 4px 0 14px 20px; color: var(--adp-text-2, #334155); }
+  .teams-tab .tm-fallback-actions { display: flex; gap: 8px; }
+
+  .teams-tab .tm-meet { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+  .teams-tab .tm-meet-form { background: #fff; border: 1px solid var(--adp-border, #E4E8EE); border-radius: var(--adp-radius, 8px); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .teams-tab .tm-meet-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .teams-tab .tm-meet-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .teams-tab .tm-meet-result { padding: 10px 12px; background: var(--adp-info-bg, #DBEAFE); color: var(--adp-info, #1D4ED8); border-radius: 6px; font-size: 13px; }
+  .teams-tab .tm-meet-side { background: var(--adp-card-alt, #FAFBFC); border: 1px solid var(--adp-border, #E4E8EE); border-radius: var(--adp-radius, 8px); padding: 14px 16px; }
+  .teams-tab .tm-meet-side h4 { margin: 0 0 6px; font-size: 12px; color: var(--adp-muted, #64748B); text-transform: uppercase; letter-spacing: .06em; }
+  .teams-tab .tm-meet-side p { font-size: 12.5px; color: var(--adp-text-2, #334155); margin: 0; }
+
+  @media (max-width: 780px) {
+    .teams-tab .tm-meet { grid-template-columns: 1fr; }
+    .teams-tab .tm-tab-actions { display: none; }
+  }
+</style>
+{% include 'adp-shell-close' %}

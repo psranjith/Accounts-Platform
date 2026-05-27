@@ -1,0 +1,34 @@
+{% assign adp_companyid = '' %}
+{% assign adp_role = '' %}
+{% assign adp_sharepointsiteurl = '' %}
+{% assign adp_powerbi_workspaceid = '03623be0-6e17-43ba-9fe5-947e9b67c823' %}
+{% assign adp_powerbi_reportid = '' %}
+{% assign adp_copilot_botid = '' %}
+{% assign adp_copilot_tenantid = '' %}
+{% assign adp_copilot_token_endpoint = '' %}
+{% assign adp_rdpfunctionbaseurl = '' %}
+{% assign adp_rdpfunctionkey = '' %}
+
+{% if user.id %}
+  {% fetchxml userctx %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="1">
+    <entity name="adp_appuser">
+      <attribute name="adp_companyid" />
+      <attribute name="adp_role" />
+      <filter>
+        <condition attribute="adp_entraobjectid" operator="eq" value="{{ user.identity_provider_object_id }}" />
+      </filter>
+      <link-entity name="adp_company" from="adp_companyid" to="adp_companyid" alias="company">
+        <attribute name="adp_sharepointsiteurl" />
+      </link-entity>
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+
+  {% if userctx.results.entities.size > 0 %}
+    {% assign u = userctx.results.entities[0] %}
+    {% assign adp_companyid = u.adp_companyid.id %}
+    {% assign adp_role = u.adp_role.label %}
+    {% assign adp_sharepointsiteurl = u['company.adp_sharepointsiteurl'] %}
+  {% endif %}
+{% endif %}

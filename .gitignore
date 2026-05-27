@@ -1,0 +1,43 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Azure Functions
+apps/**/local.settings.json
+bin/
+obj/
+.azure/
+.azurefunctions/
+
+# Power Platform / pac CLI
+**/bin/
+**/obj/
+*.cdsproj.user
+.pac/
+
+# VS Code / IDE
+.vscode/*.log
+.idea/
+*.swp
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build / temp
+dist/
+build/
+out/
+*.tmp
+*.bak
+*.log
+
+# Secrets / local config
+*.env
+.env.*
+preview/auth-config.local.js
+power-platform/deployment-settings.local.json

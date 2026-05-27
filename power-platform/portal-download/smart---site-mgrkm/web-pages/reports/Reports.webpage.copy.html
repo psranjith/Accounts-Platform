@@ -1,0 +1,11 @@
+{% include 'adp-user-context' %}
+<section>
+  <h2>Reports</h2>
+  <p>Embedded Power BI report with RLS scoped by company.</p>
+  <div class="powerbi-embed"
+       data-workspace="{{ adp_powerbi_workspaceid }}"
+       data-report="{{ adp_powerbi_reportid }}"
+       data-company-id="{{ adp_companyid }}">
+    {% comment %} Configure the Power BI component in Power Pages UI and pass company filter. {% endcomment %}
+  </div>
+</section>

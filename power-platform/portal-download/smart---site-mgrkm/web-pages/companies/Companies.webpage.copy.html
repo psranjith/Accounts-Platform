@@ -1,0 +1,11 @@
+{% include 'adp-user-context' %}
+<section>
+  <h2>Client Companies</h2>
+  {% if adp_role == 'Accountant' or adp_role == 'Admin' %}
+    <p>Use the Dataverse form below to onboard a company. Saving a record triggers Flow_OnboardCompany.</p>
+    {% entityform name: 'ADP Company - Onboard' %}
+    {% entitylist name: 'ADP Companies - Accountant' %}
+  {% else %}
+    <p>You do not have permission to manage company onboarding.</p>
+  {% endif %}
+</section>

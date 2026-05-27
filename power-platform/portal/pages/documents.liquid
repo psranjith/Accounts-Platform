@@ -1,0 +1,278 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'documents' %}
+{% assign page_title = 'Documents' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Documents' %}
+{% include 'adp-shell-open' %}
+{% assign sharepoint_default = 'https://intelliblend.sharepoint.com/sites/Smartsoft646' %}
+{% if adp_sharepointsiteurl == blank or adp_sharepointsiteurl == '' %}
+  {% assign sharepoint_url = sharepoint_default %}
+{% else %}
+  {% assign sharepoint_url = adp_sharepointsiteurl %}
+{% endif %}
+{% assign sharepoint_docs_url = sharepoint_url | append: '/Shared%20Documents/Forms/AllItems.aspx' %}
+
+<section class="documents-tab">
+  <header class="documents-header">
+    <h2>Documents</h2>
+    <p>
+      Connected SharePoint site:
+      <a href="{{ sharepoint_url }}" target="_blank" rel="noopener">{{ sharepoint_url }}</a>
+    </p>
+    <div class="documents-actions">
+      <a class="btn btn-primary" href="{{ sharepoint_docs_url }}" target="_blank" rel="noopener">
+        Open Document Library
+      </a>
+      <a class="btn btn-default" href="{{ sharepoint_url }}" target="_blank" rel="noopener">
+        Open Site
+      </a>
+    </div>
+  </header>
+
+  <div id="docsDiag" class="docs-diag" hidden></div>
+
+  <div id="sharepoint-control"
+       class="sharepoint-embed"
+       data-company-id="{{ adp_companyid }}"
+       data-site-url="{{ sharepoint_url }}">
+    {% comment %}
+      SharePoint blocks iframe embedding via X-Frame-Options: SAMEORIGIN, so an
+      iframe to /Shared Documents/Forms/AllItems.aspx never renders cross-origin.
+      Instead we render a document list here (stubbed in the preview; in the
+      live portal, replace with a Power Pages SharePoint Document component
+      bound to {{ sharepoint_url }} for the current company, or call the
+      SharePoint REST API from a backend / Power Automate flow).
+    {% endcomment %}
+
+    <div class="docs-toolbar">
+      <input type="search" id="docSearch" placeholder="Search documents…" />
+      <span class="docs-count" id="docCount"></span>
+    </div>
+
+    <table class="docs-table" id="docsTable">
+      <thead>
+        <tr>
+          <th style="width: 40%;">Name</th>
+          <th>Folder</th>
+          <th>Modified by</th>
+          <th>Modified</th>
+          <th style="width: 80px;">Size</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="docsBody">
+        <tr><td colspan="6" class="placeholder">Loading documents…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var siteUrl = {{ sharepoint_url | json }};
+    var docsUrl = {{ sharepoint_docs_url | json }};
+    var body = document.getElementById('docsBody');
+    var count = document.getElementById('docCount');
+    var search = document.getElementById('docSearch');
+    var diag = document.getElementById('docsDiag');
+
+    function showDiag(level, html) {
+      diag.hidden = false;
+      diag.className = 'docs-diag docs-diag-' + level;
+      diag.innerHTML = html;
+    }
+
+    // Stubbed catalog for the preview. In production, fetch from
+    // /_api/web/lists/getbytitle('Documents')/items via SharePoint REST,
+    // or call a Power Automate flow that returns the listing.
+    var docs = [];
+    var stubDocs = [
+      { name: 'GST Return Q4 2025-26.pdf',       folder: 'GST',            user: 'Priya Sharma', modified: '2026-05-18 14:22', size: '212 KB', icon: 'pdf' },
+      { name: 'Bank Statement Apr 2026.csv',     folder: 'Bank Statements',user: 'Auto Ingest',  modified: '2026-05-17 09:12', size: '88 KB',  icon: 'csv' },
+      { name: 'Acme Traders - PO 3321.xlsx',     folder: 'Purchases',      user: 'Rahul Verma',  modified: '2026-05-16 17:48', size: '46 KB',  icon: 'xlsx' },
+      { name: 'Invoice INV-2026-0481.pdf',       folder: 'Invoices',       user: 'Priya Sharma', modified: '2026-05-16 11:02', size: '134 KB', icon: 'pdf' },
+      { name: 'Tally Backup 2026-05.zip',        folder: 'Backups',        user: 'Auto Ingest',  modified: '2026-05-15 23:00', size: '12.4 MB',icon: 'zip' },
+      { name: 'Audit Checklist.docx',            folder: 'Compliance',     user: 'Anjali Mehta', modified: '2026-05-14 10:30', size: '24 KB',  icon: 'docx' },
+      { name: 'Engagement Letter - Acme.docx',   folder: 'Clients',        user: 'Anjali Mehta', modified: '2026-05-12 16:45', size: '28 KB',  icon: 'docx' },
+      { name: 'TDS Reconciliation.xlsx',         folder: 'Reconciliation', user: 'Rahul Verma',  modified: '2026-05-10 19:08', size: '58 KB',  icon: 'xlsx' }
+    ];
+
+    function extOf(name) {
+      var m = /\.([a-z0-9]{1,5})$/i.exec(name || '');
+      return m ? m[1].toLowerCase() : 'file';
+    }
+    function formatSize(bytes) {
+      if (bytes == null) return '';
+      var units = ['B','KB','MB','GB','TB'], i = 0, n = bytes;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return (i === 0 ? n : n.toFixed(n < 10 ? 1 : 0)) + ' ' + units[i];
+    }
+    function formatDate(iso) {
+      if (!iso) return '';
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
+        + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function iconFor(ext) {
+      var colors = { pdf:'#d04437', xlsx:'#0a7c3f', docx:'#1a5fb4', csv:'#0a7c3f', zip:'#6b7280', txt:'#6b7280' };
+      var color = colors[ext] || '#6b7280';
+      return '<span class="doc-icon" style="background:' + color + '">' + ext.toUpperCase() + '</span>';
+    }
+
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];}); }
+
+    function rowHtml(d) {
+      var fileUrl = d.webUrl || (docsUrl + '#name=' + encodeURIComponent(d.name));
+      return '<tr>'
+        + '<td>' + iconFor(d.icon) + '<a href="' + fileUrl + '" target="_blank" rel="noopener" class="doc-name">' + escapeHtml(d.name) + '</a></td>'
+        + '<td>' + escapeHtml(d.folder) + '</td>'
+        + '<td>' + escapeHtml(d.user) + '</td>'
+        + '<td>' + escapeHtml(d.modified) + '</td>'
+        + '<td>' + escapeHtml(d.size) + '</td>'
+        + '<td><a class="doc-action" href="' + fileUrl + '" target="_blank" rel="noopener">Open</a></td>'
+        + '</tr>';
+    }
+
+    function render(filter) {
+      var q = (filter || '').trim().toLowerCase();
+      var rows = docs.filter(function (d) {
+        if (!q) return true;
+        return d.name.toLowerCase().indexOf(q) !== -1
+          || d.folder.toLowerCase().indexOf(q) !== -1
+          || (d.user || '').toLowerCase().indexOf(q) !== -1;
+      });
+      if (rows.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" class="placeholder">No documents match &ldquo;' + escapeHtml(q) + '&rdquo;.</td></tr>';
+      } else {
+        body.innerHTML = rows.map(rowHtml).join('');
+      }
+      count.textContent = rows.length + ' of ' + docs.length + ' files';
+    }
+
+    function setStatus(msg) {
+      body.innerHTML = '<tr><td colspan="6" class="placeholder">' + escapeHtml(msg) + '</td></tr>';
+      count.textContent = '';
+    }
+
+    // Recursively list items from the SharePoint document library via Graph.
+    // Caps the walk to avoid pulling thousands of files into the preview.
+    async function loadFromGraph() {
+      var cfg = (window.adpGraph && window.adpGraph.config && window.adpGraph.config()) || null;
+      if (!cfg || !cfg.sharePoint) throw new Error('auth-config.js missing sharePoint settings');
+      var sp = cfg.sharePoint;
+
+      var site = await window.adpGraph.call(
+        '/sites/' + encodeURIComponent(sp.hostname) + ':' + sp.sitePath + ':'
+      );
+
+      // Pick the right document library. SharePoint sites typically expose
+      // several drives (Documents, Site Assets, Style Library, Form Templates,
+      // ...). We prefer an exact name match against the configured
+      // libraryName, fall back to the default 'Documents' drive, and finally
+      // pick the first documentLibrary drive.
+      var drivesResp = await window.adpGraph.call('/sites/' + site.id + '/drives');
+      var libs = (drivesResp.value || []).filter(function (d) { return d.driveType === 'documentLibrary'; });
+      var drive = libs.find(function (d) { return d.name === sp.libraryName; })
+               || libs.find(function (d) { return d.name === 'Documents'; })
+               || libs.find(function (d) { return d.name === 'Shared Documents'; })
+               || libs[0];
+      if (!drive) throw new Error('No documentLibrary drive found. Drives returned: ' + (drivesResp.value || []).map(function (d) { return d.name + ' (' + d.driveType + ')'; }).join(', '));
+      window.__adp_lastDrive = drive; // exposed for diagnostics
+
+      var collected = [];
+      var maxItems = 200;
+      var queue = [{ id: 'root', path: '' }];
+      while (queue.length && collected.length < maxItems) {
+        var node = queue.shift();
+        var page = await window.adpGraph.call(
+          '/drives/' + drive.id + '/items/' + node.id + '/children?$top=200'
+        );
+        (page.value || []).forEach(function (item) {
+          if (item.folder) {
+            queue.push({ id: item.id, path: (node.path ? node.path + '/' : '') + item.name });
+          } else if (item.file) {
+            if (collected.length >= maxItems) return;
+            collected.push({
+              name:     item.name,
+              folder:   node.path || '(root)',
+              user:     (item.lastModifiedBy && item.lastModifiedBy.user && item.lastModifiedBy.user.displayName) || '',
+              modified: formatDate(item.lastModifiedDateTime),
+              size:     formatSize(item.size),
+              icon:     extOf(item.name),
+              webUrl:   item.webUrl
+            });
+          }
+        });
+      }
+      return collected;
+    }
+
+    async function reload() {
+      var msalLoaded = !!(window.msal);
+      var graphReady = !!(window.adpGraph);
+      var signedIn   = graphReady && window.adpGraph.isSignedIn();
+      var acct       = signedIn ? window.adpGraph.account() : null;
+
+      if (!msalLoaded) {
+        showDiag('warn', '<strong>MSAL not loaded.</strong> Check DevTools \u2192 Network for a blocked msal-browser.min.js. Showing sample data.');
+      } else if (!signedIn) {
+        showDiag('info', '<strong>Not signed in.</strong> Click <em>Sign in to M365</em> (top right) to load real documents from ' + escapeHtml(siteUrl) + '. Showing sample data.');
+      } else {
+        showDiag('ok', '<strong>Signed in as ' + escapeHtml(acct.username) + '.</strong> Fetching SharePoint documents\u2026');
+      }
+
+      if (signedIn) {
+        setStatus('Loading documents from SharePoint\u2026');
+        try {
+          docs = await loadFromGraph();
+          render(search.value || '');
+          var driveLabel = window.__adp_lastDrive ? (window.__adp_lastDrive.name + ' (drive id ' + window.__adp_lastDrive.id.substring(0, 8) + '\u2026)') : 'default drive';
+          showDiag('ok', '<strong>Signed in as ' + escapeHtml(acct.username) + '.</strong> Loaded ' + docs.length + ' file(s) from <code>' + escapeHtml(driveLabel) + '</code> on ' + escapeHtml(siteUrl) + '.');
+        } catch (e) {
+          docs = stubDocs.slice();
+          render('');
+          showDiag('error',
+            '<strong>Graph call failed.</strong><br/>' +
+            '<code>' + escapeHtml(e.message) + '</code><br/>' +
+            'Verify the app registration redirect URI is exactly <code>http://127.0.0.1:5500/preview/</code> and that delegated <code>Sites.Read.All</code> + <code>Files.Read.All</code> have admin consent. Showing sample data below.');
+        }
+      } else {
+        docs = stubDocs.slice();
+        render(search.value || '');
+      }
+    }
+
+    search.addEventListener('input', function () { render(search.value); });
+    reload();
+  })();
+</script>
+
+<style>
+  .documents-tab .documents-header { margin-bottom: 16px; }
+  .documents-tab .documents-actions { display: flex; gap: 10px; margin-top: 8px; }
+  .documents-tab .sharepoint-embed { border: 1px solid #e1e6ec; border-radius: 8px; overflow: hidden; background: #fff; }
+  .documents-tab .docs-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #e1e6ec; background: #f4f6f9; }
+  .documents-tab .docs-toolbar input[type="search"] { flex: 1; max-width: 320px; padding: 6px 10px; border: 1px solid #d4dae3; border-radius: 4px; font-size: 13px; }
+  .documents-tab .docs-count { font-size: 12px; color: #6b7280; }
+  .documents-tab .docs-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .documents-tab .docs-table th { text-align: left; padding: 10px 14px; background: #fafbfd; border-bottom: 1px solid #e1e6ec; font-weight: 600; color: #00395E; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .documents-tab .docs-table td { padding: 10px 14px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+  .documents-tab .docs-table tr:hover td { background: #f7fafc; }
+  .documents-tab .docs-table tr:last-child td { border-bottom: 0; }
+  .documents-tab .doc-icon { display: inline-block; width: 36px; padding: 3px 0; margin-right: 10px; border-radius: 3px; color: #fff; font-size: 10px; font-weight: 700; text-align: center; letter-spacing: .5px; vertical-align: middle; }
+  .documents-tab .doc-name { color: #1a5fb4; text-decoration: none; font-weight: 500; }
+  .documents-tab .doc-name:hover { text-decoration: underline; }
+  .documents-tab .doc-action { color: #005B96; text-decoration: none; font-size: 13px; }
+  .documents-tab .doc-action:hover { text-decoration: underline; }
+  .documents-tab .placeholder { text-align: center; padding: 40px 14px; color: #6b7280; font-style: italic; }
+  .documents-tab .docs-diag { margin: 0 0 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; line-height: 1.45; }
+  .documents-tab .docs-diag code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .documents-tab .docs-diag-info  { background: #eef4fb; color: #1a5fb4; border: 1px solid #c9ddf2; }
+  .documents-tab .docs-diag-ok    { background: #e8f6ee; color: #0a7c3f; border: 1px solid #b7e2c8; }
+  .documents-tab .docs-diag-warn  { background: #fff7e6; color: #b45309; border: 1px solid #ffe0a3; }
+  .documents-tab .docs-diag-error { background: #fdecea; color: #b1261c; border: 1px solid #f5b3ab; }
+</style>
+
+{% include 'adp-shell-close' %}

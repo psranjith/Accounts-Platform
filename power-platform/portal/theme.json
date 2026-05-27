@@ -1,0 +1,14 @@
+{
+  "brand": {
+    "name": "Smartsoft",
+    "primaryColor": "#1a1a1a",
+    "secondaryColor": "#000000",
+    "accentColor": "#FFCB05",
+    "logoPath": "assets/logo.svg",
+    "faviconPath": "assets/favicon.ico"
+  },
+  "typography": {
+    "headingFont": "Segoe UI",
+    "bodyFont": "Segoe UI"
+  }
+}

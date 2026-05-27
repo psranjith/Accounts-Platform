@@ -1,0 +1,69 @@
+{
+  "name": "Flow_ManageSubscription",
+  "description": "Manage bundle subscriptions for a company. Handles subscribe / change / cancel actions and writes adp_subscription + adp_entitlement rows in Dataverse.",
+  "trigger": {
+    "kind": "HttpRequestWhenItemReceived",
+    "inputs": {
+      "schema": {
+        "type": "object",
+        "required": ["companyId", "bundleId", "action"],
+        "properties": {
+          "companyId": { "type": "string" },
+          "bundleId":  { "type": "string", "enum": ["tally-hosting", "m365-integration", "power-suite", "all-in-one"] },
+          "action":    { "type": "string", "enum": ["subscribe", "change", "cancel"] },
+          "billing":   { "type": "string", "enum": ["monthly", "annual"], "default": "monthly" },
+          "quantity":  { "type": "integer", "minimum": 1, "default": 1 }
+        }
+      }
+    }
+  },
+  "steps": [
+    { "id": "loadCatalog",       "kind": "GetEnvironmentVariable", "name": "adp_BundleCatalogJson" },
+    { "id": "parseBundle",       "kind": "ParseJson",              "source": "@steps.loadCatalog.value" },
+    { "id": "resolveBundle",     "kind": "Filter",                 "from": "@steps.parseBundle.bundles", "where": "item.id == triggerBody.bundleId" },
+    { "id": "computeAmount",     "kind": "Compose",                "expression": "if(equals(triggerBody.billing,'annual'), mul(first(steps.resolveBundle).annual, triggerBody.quantity), mul(first(steps.resolveBundle).monthly, triggerBody.quantity))" },
+    { "id": "switchAction",      "kind": "Switch",                 "on": "@triggerBody.action",
+      "cases": {
+        "subscribe": [
+          { "kind": "AddNewRow", "table": "adp_subscription", "fields": {
+            "adp_companyid": "@triggerBody.companyId",
+            "adp_bundleid":  "@triggerBody.bundleId",
+            "adp_billingcycle": "@triggerBody.billing",
+            "adp_quantity":  "@triggerBody.quantity",
+            "adp_amount":    "@steps.computeAmount",
+            "adp_status":    "Active",
+            "adp_currentperiodstart": "@utcNow()",
+            "adp_currentperiodend":   "@if(equals(triggerBody.billing,'annual'), addToTime(utcNow(),1,'Year'), addToTime(utcNow(),1,'Month'))"
+          }},
+          { "kind": "ApplyToEach", "from": "@first(steps.resolveBundle).entitlements", "do": [
+            { "kind": "AddNewRow", "table": "adp_entitlement", "fields": {
+              "adp_companyid": "@triggerBody.companyId",
+              "adp_key": "@item()",
+              "adp_status": "Active"
+            }}
+          ]},
+          { "kind": "SendEmail", "to": "{accountant + admin}", "subject": "Subscribed: @{first(steps.resolveBundle).name}", "body": "Company @{triggerBody.companyId} subscribed to @{triggerBody.bundleId}." }
+        ],
+        "change": [
+          { "kind": "UpdateRow", "table": "adp_subscription", "filter": "adp_companyid eq @{triggerBody.companyId} and adp_status eq 'Active' and adp_bundleid eq @{triggerBody.bundleId}", "fields": {
+            "adp_billingcycle": "@triggerBody.billing",
+            "adp_quantity":  "@triggerBody.quantity",
+            "adp_amount":    "@steps.computeAmount"
+          }}
+        ],
+        "cancel": [
+          { "kind": "UpdateRow", "table": "adp_subscription", "filter": "adp_companyid eq @{triggerBody.companyId} and adp_status eq 'Active' and adp_bundleid eq @{triggerBody.bundleId}", "fields": {
+            "adp_status": "Cancelled",
+            "adp_currentperiodend": "@utcNow()"
+          }},
+          { "kind": "UpdateRows", "table": "adp_entitlement", "filter": "adp_companyid eq @{triggerBody.companyId}", "fields": { "adp_status": "Inactive" } }
+        ]
+      }
+    },
+    { "id": "respond", "kind": "Response", "status": 200, "body": { "ok": true, "bundleId": "@triggerBody.bundleId", "action": "@triggerBody.action", "amount": "@steps.computeAmount" } }
+  ],
+  "connections": [
+    { "logicalName": "shared_commondataserviceforapps" },
+    { "logicalName": "shared_office365" }
+  ]
+}

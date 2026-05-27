@@ -1,0 +1,852 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'inbox' %}
+{% assign page_title = 'Inbox' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Inbox' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Data Capture Inbox
+  ------------------
+  Unified multi-channel intake (Email · WhatsApp · Telegram · SharePoint)
+  organised per client company with role-aware access:
+    Accountant : sees portfolio of assigned companies; default "My queue"
+    Admin      : sees own company only
+    Client     : own company, read-only (mailto reply + open SharePoint)
+
+  Backing tables (preview-stubbed):
+    adp_dataingestion       : inbound docs (companyid, channel, kind, status, assigneeid)
+    adp_company             : company directory
+    adp_companychannel      : per-company designated endpoints (email alias, WA, TG, SP folder)
+    adp_companyassignment   : staff <-> company access map
+    adp_staff               : firm-side accountants (introduced in service-delivery)
+{% endcomment %}
+
+{% assign role_norm = adp_role | downcase %}
+{% assign is_accountant = false %}
+{% assign is_admin      = false %}
+{% assign is_client     = false %}
+{% if role_norm contains 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if role_norm contains 'admin'      %}{% assign is_admin      = true %}{% endif %}
+{% if is_accountant == false and is_admin == false %}{% assign is_client = true %}{% endif %}
+{% assign can_manage = false %}
+{% if is_accountant or is_admin %}{% assign can_manage = true %}{% endif %}
+
+{% comment %} Current accountant staff id (for "My queue") — production should derive from logged-in user. {% endcomment %}
+{% assign current_staffid = 'stf-priya' %}
+
+<section class="adp-inbox">
+  <header class="adp-inbox-head">
+    <h2>Data Capture Inbox</h2>
+    <p class="adp-meta">
+      {% if is_accountant %}Signed in as <strong>Accountant</strong> &middot; portfolio across assigned clients
+      {% elsif is_admin  %}Company <strong>{{ adp_companyid }}</strong> &middot; Role <strong>Admin</strong>
+      {% else %}Company <strong>{{ adp_companyid }}</strong> &middot; Role <strong>Client</strong> (read-only)
+      {% endif %}
+    </p>
+  </header>
+
+  {% fetchxml ing_query %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+    <entity name="adp_dataingestion">
+      <attribute name="adp_ingestionid" />
+      <attribute name="adp_companyid" />
+      <attribute name="adp_name" />
+      <attribute name="adp_kind" />
+      <attribute name="adp_channel" />
+      <attribute name="adp_sender" />
+      <attribute name="adp_status" />
+      <attribute name="adp_receivedon" />
+      <attribute name="adp_size" />
+      <attribute name="adp_assigneeid" />
+      <attribute name="adp_assigneename" />
+      <attribute name="adp_messageurl" />
+      {% unless is_accountant %}
+      <filter>
+        <condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" />
+      </filter>
+      {% endunless %}
+      <order attribute="adp_receivedon" descending="true" />
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+  {% assign docs = ing_query.results.entities %}
+
+  {% fetchxml companies_query %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+    <entity name="adp_company">
+      <attribute name="adp_companyid" />
+      <attribute name="adp_name" />
+      <order attribute="adp_name" />
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+  {% assign companies = companies_query.results.entities %}
+
+  {% fetchxml channels_query %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+    <entity name="adp_companychannel">
+      <attribute name="adp_companychannelid" />
+      <attribute name="adp_companyid" />
+      <attribute name="adp_emailalias" />
+      <attribute name="adp_wanumber" />
+      <attribute name="adp_tghandle" />
+      <attribute name="adp_spfolder" />
+      <attribute name="adp_clientcontacts" />
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+  {% assign company_channels = channels_query.results.entities %}
+
+  {% fetchxml assignments_query %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+    <entity name="adp_companyassignment">
+      <attribute name="adp_companyassignmentid" />
+      <attribute name="adp_companyid" />
+      <attribute name="adp_staffid" />
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+  {% assign assignments = assignments_query.results.entities %}
+
+  {% fetchxml staff_query %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+    <entity name="adp_staff">
+      <attribute name="adp_staffid" />
+      <attribute name="adp_name" />
+      <attribute name="adp_initials" />
+      <attribute name="adp_color" />
+      <order attribute="adp_name" />
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+  {% assign staff = staff_query.results.entities %}
+
+  {% comment %} -------- KPI strip (computed over visible docs) -------- {% endcomment %}
+  {% assign k_today = 0 %}{% assign k_pending = 0 %}{% assign k_error = 0 %}{% assign k_unassigned = 0 %}{% assign k_mine = 0 %}
+  {% capture today_prefix %}{{ 'now' | date: '%Y-%m-%d' }}{% endcapture %}
+  {% for d in docs %}
+    {% if d.adp_receivedon contains today_prefix %}{% assign k_today = k_today | plus: 1 %}{% endif %}
+    {% if d.adp_status.label == 'Pending Review' %}{% assign k_pending = k_pending | plus: 1 %}{% endif %}
+    {% if d.adp_status.label == 'Error' %}{% assign k_error = k_error | plus: 1 %}{% endif %}
+    {% if d.adp_assigneeid == '' or d.adp_assigneeid == nil %}{% assign k_unassigned = k_unassigned | plus: 1 %}{% endif %}
+    {% if d.adp_assigneeid == current_staffid %}{% assign k_mine = k_mine | plus: 1 %}{% endif %}
+  {% endfor %}
+
+  <div class="adp-kpi-grid">
+    <div class="adp-kpi"><span class="kpi-label">Received today</span><strong>{{ k_today }}</strong></div>
+    <div class="adp-kpi adp-kpi-warn"><span class="kpi-label">Pending review</span><strong>{{ k_pending }}</strong></div>
+    <div class="adp-kpi adp-kpi-danger"><span class="kpi-label">Errors</span><strong>{{ k_error }}</strong></div>
+    <div class="adp-kpi"><span class="kpi-label">Unassigned</span><strong>{{ k_unassigned }}</strong></div>
+    {% if is_accountant %}<div class="adp-kpi adp-kpi-mine"><span class="kpi-label">My queue</span><strong>{{ k_mine }}</strong></div>{% endif %}
+  </div>
+
+  {% comment %} -------- Channel summary cards -------- {% endcomment %}
+  {% assign ch_email = 0 %}{% assign ch_wa = 0 %}{% assign ch_tg = 0 %}{% assign ch_sp = 0 %}
+  {% for d in docs %}
+    {% if d.adp_channel.label == 'Email'      %}{% assign ch_email = ch_email | plus: 1 %}{% endif %}
+    {% if d.adp_channel.label == 'WhatsApp'   %}{% assign ch_wa    = ch_wa    | plus: 1 %}{% endif %}
+    {% if d.adp_channel.label == 'Telegram'   %}{% assign ch_tg    = ch_tg    | plus: 1 %}{% endif %}
+    {% if d.adp_channel.label == 'SharePoint' %}{% assign ch_sp    = ch_sp    | plus: 1 %}{% endif %}
+  {% endfor %}
+
+  <div class="adp-channels-strip">
+    <article class="adp-channel-card ch-email"><div class="ch-icon">&#9993;</div><div class="ch-body"><strong>Email</strong><span class="muted">inbox.smartsoft.in aliases</span><span class="ch-count">{{ ch_email }} today</span></div></article>
+    <article class="adp-channel-card ch-wa"><div class="ch-icon">&#128241;</div><div class="ch-body"><strong>WhatsApp</strong><span class="muted">Business numbers</span><span class="ch-count">{{ ch_wa }} today</span></div></article>
+    <article class="adp-channel-card ch-tg"><div class="ch-icon">&#9992;</div><div class="ch-body"><strong>Telegram</strong><span class="muted">@smart_tally + per-company</span><span class="ch-count">{{ ch_tg }} today</span></div></article>
+    <article class="adp-channel-card ch-sp"><div class="ch-icon">&#128193;</div><div class="ch-body"><strong>SharePoint</strong><span class="muted">Client upload folders</span><span class="ch-count">{{ ch_sp }} today</span></div></article>
+  </div>
+
+  {% comment %} -------- Two-pane workspace: company rail + docs pane -------- {% endcomment %}
+  <div class="adp-inbox-grid">
+    <aside class="adp-inbox-companies" id="adpCompanies">
+      {% if is_accountant %}
+        <div class="adp-rail-tabs">
+          <button type="button" class="adp-rail-tab is-active" data-rail="my">My queue ({{ k_mine }})</button>
+          <button type="button" class="adp-rail-tab"           data-rail="all">All assigned</button>
+        </div>
+      {% endif %}
+      <ul class="adp-company-list">
+        {% for c in companies %}
+          {% comment %} Role gating: Admin / Client see only own company; Accountant sees assigned ones. {% endcomment %}
+          {% assign visible = false %}
+          {% if is_accountant %}
+            {% for a in assignments %}
+              {% if a.adp_companyid.id == c.adp_companyid and a.adp_staffid == current_staffid %}{% assign visible = true %}{% endif %}
+            {% endfor %}
+          {% else %}
+            {% if c.adp_companyid == adp_companyid %}{% assign visible = true %}{% endif %}
+          {% endif %}
+          {% if visible %}
+            {% assign pending = 0 %}{% assign mine = 0 %}
+            {% for d in docs %}
+              {% if d.adp_companyid.id == c.adp_companyid %}
+                {% if d.adp_status.label == 'Pending Review' or d.adp_status.label == 'Queued' or d.adp_status.label == 'Error' %}{% assign pending = pending | plus: 1 %}{% endif %}
+                {% if d.adp_assigneeid == current_staffid %}{% assign mine = mine | plus: 1 %}{% endif %}
+              {% endif %}
+            {% endfor %}
+            {% assign initials = c.adp_name | slice: 0, 1 %}
+            {% assign cc = '' %}
+            {% for x in company_channels %}{% if x.adp_companyid.id == c.adp_companyid %}{% assign cc = x %}{% endif %}{% endfor %}
+            <li class="adp-company" data-company="{{ c.adp_companyid }}" data-mine="{{ mine }}" data-name="{{ c.adp_name }}">
+              <span class="adp-avatar">{{ initials }}</span>
+              <div class="adp-company-body">
+                <div class="adp-company-head">
+                  <strong>{{ c.adp_name }}</strong>
+                  {% if pending > 0 %}<span class="adp-pill">{{ pending }}</span>{% endif %}
+                </div>
+                <div class="adp-company-chips">
+                  {% if cc %}
+                    <span class="adp-channel-chip ch-email" title="{{ cc.adp_emailalias }}">&#9993;</span>
+                    <span class="adp-channel-chip ch-wa" title="{{ cc.adp_wanumber }}">&#128241;</span>
+                    <span class="adp-channel-chip ch-tg" title="{{ cc.adp_tghandle }}">&#9992;</span>
+                    <span class="adp-channel-chip ch-sp" title="SharePoint · {{ cc.adp_spfolder }}">&#128193;</span>
+                  {% endif %}
+                </div>
+              </div>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </aside>
+
+    <div class="adp-inbox-docs" id="adpDocsPane">
+      <div class="adp-endpoint-bar" id="adpEndpointBar"></div>
+
+      <div class="adp-toolbar">
+        <div class="adp-pill-row" role="tablist">
+          <button type="button" class="adp-pill is-active" data-channel="">All</button>
+          <button type="button" class="adp-pill" data-channel="Email">&#9993; Email</button>
+          <button type="button" class="adp-pill" data-channel="WhatsApp">&#128241; WhatsApp</button>
+          <button type="button" class="adp-pill" data-channel="Telegram">&#9992; Telegram</button>
+          <button type="button" class="adp-pill" data-channel="SharePoint">&#128193; SharePoint</button>
+        </div>
+        <div class="adp-toolbar-filters">
+          <select id="adpKindFilter" aria-label="Kind">
+            <option value="">All kinds</option>
+            <option>Invoice</option>
+            <option>Bank Statement</option>
+            <option>GST Return</option>
+            <option>Voucher</option>
+            <option>Other</option>
+          </select>
+          <select id="adpStatusFilter" aria-label="Status">
+            <option value="">All statuses</option>
+            <option>Pending Review</option>
+            <option>Queued</option>
+            <option>Imported</option>
+            <option>Error</option>
+          </select>
+          <input type="search" id="adpSearch" placeholder="Search name or sender…" />
+          {% if is_accountant %}<label class="adp-toggle"><input type="checkbox" id="adpMineOnly" checked> Mine only</label>{% endif %}
+        </div>
+      </div>
+
+      <ul class="adp-doc-list" id="adpDocList">
+        {% for d in docs %}
+          <li class="adp-doc-row status-{{ d.adp_status.label | downcase | replace: ' ', '-' }}"
+              data-doc="{{ d.adp_ingestionid }}"
+              data-company="{{ d.adp_companyid.id }}"
+              data-channel="{{ d.adp_channel.label }}"
+              data-kind="{{ d.adp_kind }}"
+              data-status="{{ d.adp_status.label }}"
+              data-assignee="{{ d.adp_assigneeid }}"
+              data-name="{{ d.adp_name }}"
+              data-sender="{{ d.adp_sender }}"
+              data-size="{{ d.adp_size }}"
+              data-received="{{ d.adp_receivedon }}"
+              data-messageurl="{{ d.adp_messageurl }}">
+            <span class="adp-kind-icon" data-kind="{{ d.adp_kind }}">
+              {% if d.adp_kind == 'Invoice'        %}&#128179;
+              {% elsif d.adp_kind == 'Bank Statement' %}&#127974;
+              {% elsif d.adp_kind == 'GST Return'  %}&#128209;
+              {% elsif d.adp_kind == 'Voucher'     %}&#128221;
+              {% else %}&#128196;{% endif %}
+            </span>
+            <div class="adp-doc-main">
+              <div class="adp-doc-name">{{ d.adp_name }}</div>
+              <div class="adp-doc-sub muted">
+                <span class="adp-channel-chip ch-{{ d.adp_channel.label | downcase }}">{{ d.adp_channel.label }}</span>
+                &middot; {{ d.adp_sender }} &middot; {{ d.adp_size }} &middot; {{ d.adp_receivedon }}
+              </div>
+            </div>
+            <div class="adp-doc-status">
+              <span class="badge badge-{{ d.adp_status.label | downcase | replace: ' ', '-' }}">{{ d.adp_status.label }}</span>
+            </div>
+            <div class="adp-doc-assignee">
+              {% if d.adp_assigneeid == '' or d.adp_assigneeid == nil %}
+                <span class="adp-avatar adp-avatar-unassigned" title="Unassigned">?</span>
+              {% else %}
+                {% for s in staff %}{% if s.adp_staffid == d.adp_assigneeid %}<span class="adp-avatar" style="background:{{ s.adp_color }}" title="{{ s.adp_name }}">{{ s.adp_initials }}</span>{% endif %}{% endfor %}
+              {% endif %}
+            </div>
+            <div class="adp-doc-actions">
+              <button type="button" class="btn btn-link" data-act="open">Open</button>
+              {% if can_manage %}<button type="button" class="btn btn-link" data-act="assign">Assign</button>{% endif %}
+              <button type="button" class="btn btn-link" data-act="reply">Reply</button>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      <div class="adp-empty" id="adpEmpty" hidden>No documents match the current filters.</div>
+    </div>
+  </div>
+
+  {% comment %} -------- Document detail drawer -------- {% endcomment %}
+  <aside id="adpDrawer" class="adp-drawer" hidden>
+    <div class="adp-drawer-head">
+      <strong id="adpDrawerTitle">Document</strong>
+      <button type="button" class="btn btn-link" id="adpDrawerClose">Close</button>
+    </div>
+    <nav class="adp-tabs" role="tablist">
+      <button type="button" class="adp-tab is-active" data-tab="preview"    role="tab" aria-selected="true">Preview</button>
+      <button type="button" class="adp-tab"           data-tab="activity"   role="tab" aria-selected="false">Activity</button>
+      <button type="button" class="adp-tab"           data-tab="collab"     role="tab" aria-selected="false">Collaborate</button>
+    </nav>
+    <div class="adp-drawer-body">
+      <section class="adp-tab-panel is-active" data-panel="preview" id="adpPanelPreview"></section>
+      <section class="adp-tab-panel"           data-panel="activity" id="adpPanelActivity"></section>
+      <section class="adp-tab-panel"           data-panel="collab"   id="adpPanelCollab"></section>
+    </div>
+  </aside>
+
+  {% comment %} -------- Live channel feed (Telegram widget + Files API) -------- {% endcomment %}
+  <details class="adp-live-feed" id="adpLiveFeed">
+    <summary><h3 style="display:inline-block;margin:0">Live channel feed</h3> <span class="muted" id="adpLiveFeedSub"></span></summary>
+    <div class="adp-live-grid">
+      <div class="adp-telegram-embed" id="adpTgEmbedWrap" hidden>
+        <div class="adp-tg-head">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9.04 15.47 8.9 19.3c.4 0 .58-.17.79-.38l1.9-1.8 3.94 2.88c.72.4 1.24.19 1.43-.67l2.6-12.18h.01c.23-1.06-.39-1.48-1.09-1.22L3.36 10.32c-1.05.4-1.03.98-.18 1.24l4.13 1.29 9.58-6.04c.45-.3.86-.13.52.17z"/></svg>
+          <strong style="flex:1;">Smart Tally &mdash; @smart_tally</strong>
+          <a href="tg://resolve?domain=smart_tally">Open in app</a>
+          <a href="https://web.telegram.org/k/#@smart_tally" target="_blank" rel="noopener">Open client</a>
+          <a href="https://t.me/smart_tally" target="_blank" rel="noopener">Open in web</a>
+        </div>
+        <div id="adpTgPosts" class="adp-tg-posts">Loading recent posts&hellip;</div>
+      </div>
+      <div class="adp-telegram-files" id="adpTgFilesWrap" hidden>
+        <div class="adp-tg-files-head">
+          <strong style="flex:1;">Files shared in @smart_tally</strong>
+          <button type="button" id="adpTgRefresh" class="btn btn-default btn-sm">Refresh</button>
+        </div>
+        <div id="adpTgFiles">Loading&hellip;</div>
+      </div>
+      <div class="adp-live-placeholder" id="adpLivePlaceholder">
+        <p class="muted">No live feed configured for this company's Telegram handle. Email / WhatsApp / SharePoint feeds will appear here once their connectors are wired in production.</p>
+      </div>
+    </div>
+  </details>
+
+  {% comment %} -------- JSON data island used by JS -------- {% endcomment %}
+  <script type="application/json" id="adpStaffData">
+    [{% for s in staff %}{"id":"{{ s.adp_staffid }}","name":"{{ s.adp_name }}","initials":"{{ s.adp_initials }}","color":"{{ s.adp_color }}"}{% unless forloop.last %},{% endunless %}{% endfor %}]
+  </script>
+  <script type="application/json" id="adpChannelData">
+    [{% for x in company_channels %}{"companyId":"{{ x.adp_companyid.id }}","emailAlias":"{{ x.adp_emailalias }}","waNumber":"{{ x.adp_wanumber }}","tgHandle":"{{ x.adp_tghandle }}","spFolder":"{{ x.adp_spfolder }}","contacts":"{{ x.adp_clientcontacts }}"}{% unless forloop.last %},{% endunless %}{% endfor %}]
+  </script>
+  <script type="application/json" id="adpSpSite">"{{ adp_sharepointsiteurl | default: 'https://intelliblend.sharepoint.com/sites/Smartsoft646' }}"</script>
+  <script type="application/json" id="adpCanManage">{% if can_manage %}true{% else %}false{% endif %}</script>
+  <script type="application/json" id="adpIsClient">{% if is_client %}true{% else %}false{% endif %}</script>
+  <script type="application/json" id="adpCurrentStaff">"{{ current_staffid }}"</script>
+
+  <script>
+    (function () {
+      function parseJSON(id) { var el = document.getElementById(id); try { return el ? JSON.parse(el.textContent || 'null') : null; } catch (e) { return null; } }
+      function escapeHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+      var STAFF        = parseJSON('adpStaffData') || [];
+      var CHANNELS     = parseJSON('adpChannelData') || [];
+      var SP_SITE      = (parseJSON('adpSpSite') || '').replace(/\/+$/,'');
+      var CAN_MANAGE   = parseJSON('adpCanManage') === true;
+      var IS_CLIENT    = parseJSON('adpIsClient') === true;
+      var CURRENT_STF  = parseJSON('adpCurrentStaff') || '';
+      function staffById(id){for(var i=0;i<STAFF.length;i++)if(STAFF[i].id===id)return STAFF[i];return null;}
+      function channelFor(companyId){for(var i=0;i<CHANNELS.length;i++)if(CHANNELS[i].companyId===companyId)return CHANNELS[i];return null;}
+      function staffOptions(sel){return ['<option value="">— Unassigned —</option>'].concat(STAFF.map(function(s){return '<option value="'+s.id+'"'+(s.id===sel?' selected':'')+'>'+escapeHtml(s.name)+'</option>';})).join('');}
+
+      // ---- Company selection ------------------------------------------------
+      var companyEls = Array.from(document.querySelectorAll('.adp-company'));
+      var docList    = document.getElementById('adpDocList');
+      var docRows    = Array.from(docList.querySelectorAll('.adp-doc-row'));
+      var emptyEl    = document.getElementById('adpEmpty');
+      var endpointBar= document.getElementById('adpEndpointBar');
+      var current    = null;
+
+      function selectCompany(id) {
+        current = id;
+        companyEls.forEach(function (li) { li.classList.toggle('is-active', li.getAttribute('data-company') === id); });
+        renderEndpointBar(id);
+        configureLiveFeed(id);
+        applyFilters();
+      }
+
+      function renderEndpointBar(companyId) {
+        var cc = channelFor(companyId);
+        var li = companyEls.find(function(x){return x.getAttribute('data-company')===companyId;});
+        var name = li ? (li.getAttribute('data-name') || '') : '';
+        if (!cc) { endpointBar.innerHTML = ''; return; }
+        endpointBar.innerHTML =
+          '<div class="adp-endpoint-row">' +
+            '<strong>' + escapeHtml(name) + '</strong>' +
+            '<span class="adp-endpoint-chip ch-email"><span>&#9993;</span> ' + escapeHtml(cc.emailAlias) + ' <button type="button" data-copy="' + escapeHtml(cc.emailAlias) + '" title="Copy">&#128203;</button></span>' +
+            '<span class="adp-endpoint-chip ch-wa"><span>&#128241;</span> ' + escapeHtml(cc.waNumber) + ' <button type="button" data-copy="' + escapeHtml(cc.waNumber) + '" title="Copy">&#128203;</button></span>' +
+            '<span class="adp-endpoint-chip ch-tg"><span>&#9992;</span> ' + escapeHtml(cc.tgHandle) + ' <button type="button" data-copy="' + escapeHtml(cc.tgHandle) + '" title="Copy">&#128203;</button></span>' +
+            '<a class="adp-endpoint-chip ch-sp" href="' + spFolderUrl(cc.spFolder) + '" target="_blank" rel="noopener"><span>&#128193;</span> SharePoint folder</a>' +
+          '</div>';
+      }
+
+      function spFolderUrl(folder) {
+        return SP_SITE + '/Shared%20Documents/' + encodeURIComponent(folder || '') + '/Inbox';
+      }
+      function spFileUrl(folder, fileName) {
+        return SP_SITE + '/Shared%20Documents/' + encodeURIComponent(folder || '') + '/Inbox/' + encodeURIComponent(fileName || '');
+      }
+      function teamsChatUrl(emails, topic, message) {
+        var u = 'https://teams.microsoft.com/l/chat/0/0?users=' + encodeURIComponent(emails || '');
+        if (topic)   u += '&topicName=' + encodeURIComponent(topic);
+        if (message) u += '&message='   + encodeURIComponent(message);
+        return u;
+      }
+
+      // ---- Copy buttons on endpoint chips -----------------------------------
+      endpointBar.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-copy]'); if (!btn) return;
+        try { navigator.clipboard.writeText(btn.getAttribute('data-copy')); toast('Copied'); } catch (err) { toast('Copy not supported'); }
+      });
+
+      // ---- Rail interactions ------------------------------------------------
+      companyEls.forEach(function (li) {
+        li.addEventListener('click', function () { selectCompany(li.getAttribute('data-company')); });
+      });
+      var railTabs = document.querySelectorAll('.adp-rail-tab');
+      railTabs.forEach(function (t) {
+        t.addEventListener('click', function () {
+          railTabs.forEach(function (x) { x.classList.toggle('is-active', x === t); });
+          var mode = t.getAttribute('data-rail');
+          companyEls.forEach(function (li) {
+            var mine = parseInt(li.getAttribute('data-mine') || '0', 10);
+            li.style.display = (mode === 'my' && mine === 0) ? 'none' : '';
+          });
+          // Auto-pick first visible company
+          var first = companyEls.find(function (li) { return li.style.display !== 'none'; });
+          if (first) selectCompany(first.getAttribute('data-company'));
+        });
+      });
+
+      // ---- Filters ----------------------------------------------------------
+      var chPills = document.querySelectorAll('.adp-pill');
+      var kindSel = document.getElementById('adpKindFilter');
+      var statSel = document.getElementById('adpStatusFilter');
+      var search  = document.getElementById('adpSearch');
+      var mineCb  = document.getElementById('adpMineOnly');
+      var currentChannel = '';
+      chPills.forEach(function (p) {
+        p.addEventListener('click', function () {
+          chPills.forEach(function (x) { x.classList.toggle('is-active', x === p); });
+          currentChannel = p.getAttribute('data-channel') || '';
+          applyFilters();
+        });
+      });
+      [kindSel, statSel, search, mineCb].forEach(function (el) { if (el) el.addEventListener('input', applyFilters); });
+
+      function applyFilters() {
+        var k  = (kindSel && kindSel.value) || '';
+        var st = (statSel && statSel.value) || '';
+        var q  = ((search && search.value) || '').toLowerCase();
+        var mine = mineCb && mineCb.checked;
+        var shown = 0;
+        docRows.forEach(function (li) {
+          var ok = true;
+          if (current && li.getAttribute('data-company') !== current) ok = false;
+          if (ok && currentChannel && li.getAttribute('data-channel') !== currentChannel) ok = false;
+          if (ok && k  && li.getAttribute('data-kind')    !== k)  ok = false;
+          if (ok && st && li.getAttribute('data-status')  !== st) ok = false;
+          if (ok && q) {
+            var hay = (li.getAttribute('data-name') + ' ' + li.getAttribute('data-sender')).toLowerCase();
+            if (hay.indexOf(q) === -1) ok = false;
+          }
+          if (ok && mine && li.getAttribute('data-assignee') !== CURRENT_STF) ok = false;
+          li.style.display = ok ? '' : 'none';
+          if (ok) shown++;
+        });
+        emptyEl.hidden = shown > 0;
+      }
+
+      // ---- Live feed wiring -------------------------------------------------
+      var liveFeed       = document.getElementById('adpLiveFeed');
+      var liveSub        = document.getElementById('adpLiveFeedSub');
+      var tgEmbedWrap    = document.getElementById('adpTgEmbedWrap');
+      var tgFilesWrap    = document.getElementById('adpTgFilesWrap');
+      var livePlaceholder= document.getElementById('adpLivePlaceholder');
+      function configureLiveFeed(companyId) {
+        var cc = channelFor(companyId);
+        var tg = cc ? cc.tgHandle : '';
+        if (tg === '@smart_tally') {
+          liveSub.textContent = '· ' + tg;
+          tgEmbedWrap.hidden = false;
+          tgFilesWrap.hidden = false;
+          livePlaceholder.hidden = true;
+          if (!tgEmbedWrap.dataset.loaded) { loadTgPosts(); tgEmbedWrap.dataset.loaded = '1'; }
+          if (!tgFilesWrap.dataset.loaded) { loadTgFiles(); tgFilesWrap.dataset.loaded = '1'; }
+        } else {
+          liveSub.textContent = cc ? '· ' + tg + ' (not yet connected)' : '';
+          tgEmbedWrap.hidden = true;
+          tgFilesWrap.hidden = true;
+          livePlaceholder.hidden = false;
+        }
+      }
+      function loadTgPosts() {
+        var box = document.getElementById('adpTgPosts');
+        var url = (window.ADP_TG_POSTS_URL) || ('https://' + location.hostname.replace(/^www\./,'') + '/api/posts?channel=smart_tally');
+        fetch(url, { cache: 'no-store' })
+          .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function (j) {
+            var items = j.items || [];
+            if (!items.length) { box.innerHTML = '<em>No posts found in this channel yet.</em>'; return; }
+            box.innerHTML = '';
+            items.forEach(function (p) {
+              var wrap = document.createElement('div');
+              wrap.style.cssText = 'margin:0 auto .75rem auto;max-width:520px;';
+              var s = document.createElement('script');
+              s.async = true; s.src = 'https://telegram.org/js/telegram-widget.js?22';
+              s.setAttribute('data-telegram-post', p.channel + '/' + p.id);
+              s.setAttribute('data-width', '100%');
+              wrap.appendChild(s); box.appendChild(wrap);
+            });
+          })
+          .catch(function (e) { box.innerHTML = '<em>Could not load channel posts: ' + escapeHtml(e.message) + '</em>'; });
+      }
+      function loadTgFiles() {
+        var box = document.getElementById('adpTgFiles');
+        var url = (window.ADP_TG_FILES_URL) || ('https://' + location.hostname.replace(/^www\./,'') + '/api/files?channel=smart_tally');
+        box.textContent = 'Loading…';
+        fetch(url, { cache: 'no-store' })
+          .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function (j) {
+            var items = j.items || [];
+            if (!items.length) { box.innerHTML = '<em>No files found in the channel yet.</em>'; return; }
+            var fmt = function (s) { try { return new Date(s).toLocaleString(); } catch (e) { return s || ''; } };
+            var rows = items.map(function (it) {
+              return '<tr><td>' + escapeHtml(it.kind) + '</td>' +
+                '<td><a href="' + escapeHtml(it.url) + '" target="_blank" rel="noopener">' + escapeHtml(it.name) + '</a></td>' +
+                '<td>' + escapeHtml(it.size) + '</td>' +
+                '<td>' + escapeHtml(fmt(it.date)) + '</td>' +
+                '<td><a href="' + escapeHtml(it.postUrl) + '" target="_blank" rel="noopener">open post</a></td></tr>';
+            }).join('');
+            box.innerHTML = '<table class="table table-condensed" style="margin:0;"><thead><tr><th>Kind</th><th>File</th><th>Size</th><th>Posted</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+          })
+          .catch(function (e) { box.innerHTML = '<em>Could not load channel files: ' + escapeHtml(e.message) + '</em>'; });
+      }
+      var tgR = document.getElementById('adpTgRefresh');
+      if (tgR) tgR.addEventListener('click', loadTgFiles);
+
+      // ---- Drawer ----------------------------------------------------------
+      var drawer       = document.getElementById('adpDrawer');
+      var drawerTitle  = document.getElementById('adpDrawerTitle');
+      var panelPrev    = document.getElementById('adpPanelPreview');
+      var panelAct     = document.getElementById('adpPanelActivity');
+      var panelCollab  = document.getElementById('adpPanelCollab');
+
+      function switchTab(name) {
+        document.querySelectorAll('.adp-tab').forEach(function (b) {
+          var on = b.getAttribute('data-tab') === name;
+          b.classList.toggle('is-active', on); b.setAttribute('aria-selected', on);
+        });
+        document.querySelectorAll('.adp-tab-panel').forEach(function (p) {
+          p.classList.toggle('is-active', p.getAttribute('data-panel') === name);
+        });
+      }
+      document.querySelectorAll('.adp-tab').forEach(function (b) { b.addEventListener('click', function () { switchTab(b.getAttribute('data-tab')); }); });
+      document.getElementById('adpDrawerClose').addEventListener('click', function () { drawer.hidden = true; });
+
+      function openDrawer(row) {
+        var d = rowData(row);
+        drawerTitle.textContent = d.name;
+        renderPreview(d); renderActivity(d); renderCollab(d);
+        switchTab('preview');
+        drawer.hidden = false;
+      }
+
+      function rowData(row) {
+        return {
+          id:        row.getAttribute('data-doc'),
+          companyId: row.getAttribute('data-company'),
+          channel:   row.getAttribute('data-channel'),
+          kind:      row.getAttribute('data-kind'),
+          status:    row.getAttribute('data-status'),
+          assigneeId:row.getAttribute('data-assignee'),
+          name:      row.getAttribute('data-name'),
+          sender:    row.getAttribute('data-sender'),
+          size:      row.getAttribute('data-size'),
+          received:  row.getAttribute('data-received'),
+          messageUrl:row.getAttribute('data-messageurl')
+        };
+      }
+
+      function renderPreview(d) {
+        var cc = channelFor(d.companyId);
+        panelPrev.innerHTML =
+          '<div class="adp-preview-card">' +
+            '<div class="adp-preview-icon">' + ({Invoice:'&#128179;','Bank Statement':'&#127974;','GST Return':'&#128209;',Voucher:'&#128221;'}[d.kind] || '&#128196;') + '</div>' +
+            '<div class="adp-preview-meta">' +
+              '<div><span class="muted">Kind</span><strong>' + escapeHtml(d.kind) + '</strong></div>' +
+              '<div><span class="muted">Channel</span><strong>' + escapeHtml(d.channel) + '</strong></div>' +
+              '<div><span class="muted">Sender</span><strong>' + escapeHtml(d.sender) + '</strong></div>' +
+              '<div><span class="muted">Size</span><strong>' + escapeHtml(d.size) + '</strong></div>' +
+              '<div><span class="muted">Received</span><strong>' + escapeHtml(d.received) + '</strong></div>' +
+              '<div><span class="muted">Status</span><strong>' + escapeHtml(d.status) + '</strong></div>' +
+            '</div>' +
+          '</div>' +
+          (CAN_MANAGE ? (
+            '<div class="adp-preview-actions">' +
+              '<label>Move to engagement <select id="adpMoveEng"><option value="">— pick engagement —</option><option>GST Return (May)</option><option>Monthly Book Closure</option><option>Bank Reconciliation</option></select></label>' +
+              '<button type="button" class="btn btn-primary" id="adpMarkImported">Mark imported</button>' +
+              '<button type="button" class="btn btn-default" id="adpMarkError">Mark error</button>' +
+            '</div>'
+          ) : '');
+        var imp = document.getElementById('adpMarkImported');
+        var err = document.getElementById('adpMarkError');
+        if (imp) imp.addEventListener('click', function () { toast('Marked as imported (stub).'); });
+        if (err) err.addEventListener('click', function () { toast('Marked as error (stub).'); });
+      }
+
+      function renderActivity(d) {
+        // Stub seed: a couple of system entries per doc id.
+        var seed = [
+          { type: 'status',  actor: 'system',     ts: d.received,   text: 'Document received via ' + d.channel + '.' },
+          { type: 'status',  actor: 'system',     ts: d.received,   text: 'Routed to company ' + escapeHtml(channelFor(d.companyId) ? channelFor(d.companyId).spFolder : '') + '.' }
+        ];
+        if (d.status === 'Error')   seed.push({ type: 'status', actor: 'system', ts: d.received, text: 'Parser failed — manual review required.' });
+        if (d.status === 'Imported')seed.push({ type: 'status', actor: 'system', ts: d.received, text: 'Imported into Tally / Dataverse.' });
+        var feed = seed.map(function (a) {
+          return '<li class="adp-act adp-act-' + a.type + '">' +
+            '<div class="adp-act-meta"><strong>' + escapeHtml(a.actor) + '</strong> <span class="muted">· ' + escapeHtml(a.ts) + '</span></div>' +
+            '<div>' + escapeHtml(a.text) + '</div>' +
+          '</li>';
+        }).join('');
+        panelAct.innerHTML =
+          '<ul class="adp-activity">' + feed + '</ul>' +
+          (IS_CLIENT ? '' :
+            '<div class="adp-composer">' +
+              '<textarea id="adpCommentText" placeholder="Add a comment for the team…"></textarea>' +
+              '<div class="adp-composer-actions"><button type="button" class="btn btn-primary" id="adpPostComment">Post comment</button></div>' +
+            '</div>');
+        var post = document.getElementById('adpPostComment');
+        if (post) post.addEventListener('click', function () {
+          var ta = document.getElementById('adpCommentText'); var text = (ta.value || '').trim(); if (!text) return;
+          var li = document.createElement('li');
+          li.className = 'adp-act adp-act-comment';
+          li.innerHTML = '<div class="adp-act-meta"><strong>You</strong> <span class="muted">· ' + new Date().toISOString().slice(0,16).replace('T',' ') + '</span></div><div>' + escapeHtml(text) + '</div>';
+          panelAct.querySelector('.adp-activity').prepend(li);
+          ta.value = '';
+        });
+      }
+
+      function renderCollab(d) {
+        var cc = channelFor(d.companyId) || { contacts: '', emailAlias: '', spFolder: '' };
+        var emails = cc.contacts || '';
+        var teams  = teamsChatUrl(emails, 'Doc: ' + d.name, 'Re: ' + d.name + ' (' + d.kind + ')');
+        var spUrl  = spFileUrl(cc.spFolder, d.name);
+        var mailto = 'mailto:' + encodeURIComponent(d.sender) + '?subject=' + encodeURIComponent('Re: ' + d.name) + '&body=' + encodeURIComponent('Hello,\n\nRegarding ' + d.name + ' received on ' + d.received + ' via ' + d.channel + '.\n\nRegards,\nSmartsoft Accounts Team');
+        panelCollab.innerHTML =
+          '<div class="adp-collab-grid">' +
+            '<a class="adp-collab-card ch-teams" href="' + teams + '" target="_blank" rel="noopener"><div class="ic">&#128172;</div><div><strong>Discuss in Teams</strong><div class="muted">Opens a Teams chat with ' + escapeHtml(emails || 'client contacts') + '</div></div></a>' +
+            '<a class="adp-collab-card ch-sp" href="' + spUrl + '" target="_blank" rel="noopener"><div class="ic">&#128193;</div><div><strong>Open in SharePoint</strong><div class="muted">' + escapeHtml(spUrl) + '</div></div></a>' +
+            '<a class="adp-collab-card ch-email" href="' + mailto + '"><div class="ic">&#9993;</div><div><strong>Reply by email</strong><div class="muted">To ' + escapeHtml(d.sender) + '</div></div></a>' +
+            '<button type="button" class="adp-collab-card ch-link" id="adpShareLink"><div class="ic">&#128279;</div><div><strong>Copy share link</strong><div class="muted">For internal use</div></div></button>' +
+          '</div>' +
+          (CAN_MANAGE ? (
+            '<div class="adp-collab-assign">' +
+              '<label>Assignee <select id="adpAssigneeSel">' + staffOptions(d.assigneeId) + '</select></label>' +
+            '</div>'
+          ) : '');
+        var share = document.getElementById('adpShareLink');
+        if (share) share.addEventListener('click', function () {
+          try { navigator.clipboard.writeText(location.href + '#doc=' + d.id); toast('Share link copied'); }
+          catch (e) { toast('Copy not supported'); }
+        });
+        var asel = document.getElementById('adpAssigneeSel');
+        if (asel) asel.addEventListener('change', function () {
+          var row = docList.querySelector('.adp-doc-row[data-doc="' + d.id + '"]'); if (!row) return;
+          row.setAttribute('data-assignee', asel.value);
+          var s = staffById(asel.value);
+          var av = row.querySelector('.adp-doc-assignee');
+          if (s) av.innerHTML = '<span class="adp-avatar" style="background:' + s.color + '" title="' + escapeHtml(s.name) + '">' + s.initials + '</span>';
+          else   av.innerHTML = '<span class="adp-avatar adp-avatar-unassigned" title="Unassigned">?</span>';
+          toast(s ? ('Assigned to ' + s.name) : 'Unassigned');
+        });
+      }
+
+      // ---- Row click + actions ---------------------------------------------
+      docList.addEventListener('click', function (e) {
+        var row = e.target.closest('.adp-doc-row'); if (!row) return;
+        var actBtn = e.target.closest('[data-act]');
+        var act = actBtn ? actBtn.getAttribute('data-act') : 'open';
+        var d = rowData(row);
+        if (act === 'reply') { window.location.href = 'mailto:' + encodeURIComponent(d.sender) + '?subject=' + encodeURIComponent('Re: ' + d.name); return; }
+        if (act === 'assign') { openDrawer(row); switchTab('collab'); return; }
+        openDrawer(row);
+      });
+
+      // ---- Toast helper -----------------------------------------------------
+      function toast(text) {
+        var t = document.createElement('div'); t.className = 'adp-toast'; t.textContent = text;
+        document.body.appendChild(t); setTimeout(function () { t.remove(); }, 1800);
+      }
+
+      // ---- Init -------------------------------------------------------------
+      // Default rail: accountant -> My queue (companies with mine>0); admin/client -> own company.
+      var firstVisible = companyEls.find(function (li) {
+        if (!document.querySelector('.adp-rail-tab.is-active[data-rail="my"]')) return true;
+        return parseInt(li.getAttribute('data-mine') || '0', 10) > 0;
+      });
+      // Hide companies with no mine when My queue is the default
+      if (document.querySelector('.adp-rail-tab.is-active[data-rail="my"]')) {
+        companyEls.forEach(function (li) {
+          if (parseInt(li.getAttribute('data-mine') || '0', 10) === 0) li.style.display = 'none';
+        });
+      }
+      if (firstVisible) selectCompany(firstVisible.getAttribute('data-company'));
+      else if (companyEls[0]) selectCompany(companyEls[0].getAttribute('data-company'));
+    })();
+  </script>
+</section>
+
+<style>
+  .adp-inbox .adp-inbox-head h2 { margin: 0; color: #00395E; }
+  .adp-inbox .adp-meta { color: #6b7280; margin: 4px 0 16px; font-size: 14px; }
+  .adp-inbox .muted { color: #6b7280; }
+
+  .adp-inbox .adp-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .adp-inbox .adp-kpi { background: #f7f9fc; border: 1px solid #e1e6ec; border-radius: 8px; padding: 10px 12px; }
+  .adp-inbox .adp-kpi-warn   { background: #fff8ea; border-color: #f5d597; }
+  .adp-inbox .adp-kpi-danger { background: #fdecec; border-color: #f3b1b1; }
+  .adp-inbox .adp-kpi-mine   { background: #ecf6ff; border-color: #b9def7; }
+  .adp-inbox .kpi-label { display: block; color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .adp-inbox .adp-kpi strong { font-size: 20px; color: #00395E; display: block; margin-top: 2px; }
+
+  .adp-inbox .adp-channels-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .adp-inbox .adp-channel-card { display: flex; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid #e1e6ec; background: #fff; }
+  .adp-inbox .adp-channel-card .ch-icon { font-size: 22px; }
+  .adp-inbox .adp-channel-card .ch-body { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+  .adp-inbox .adp-channel-card .ch-count { color: #00395E; font-weight: 600; margin-top: 2px; }
+  .adp-inbox .adp-channel-card.ch-email { border-left: 4px solid #1d4ed8; }
+  .adp-inbox .adp-channel-card.ch-wa    { border-left: 4px solid #25d366; }
+  .adp-inbox .adp-channel-card.ch-tg    { border-left: 4px solid #0088cc; }
+  .adp-inbox .adp-channel-card.ch-sp    { border-left: 4px solid #0f766e; }
+
+  .adp-inbox .adp-inbox-grid { display: grid; grid-template-columns: 280px 1fr; gap: 14px; min-height: 480px; }
+  .adp-inbox .adp-inbox-companies { background: #f7f9fc; border: 1px solid #e1e6ec; border-radius: 8px; padding: 8px; overflow: hidden; }
+  .adp-inbox .adp-rail-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .adp-inbox .adp-rail-tab { flex: 1; background: transparent; border: 1px solid transparent; padding: 5px 8px; cursor: pointer; border-radius: 6px; color: #6b7280; font-weight: 600; font-size: 12px; }
+  .adp-inbox .adp-rail-tab.is-active { background: #fff; border-color: #d6dde6; color: #00395E; }
+  .adp-inbox .adp-company-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; max-height: 520px; overflow-y: auto; }
+  .adp-inbox .adp-company { display: grid; grid-template-columns: 32px 1fr; gap: 8px; padding: 8px; border-radius: 6px; cursor: pointer; align-items: center; }
+  .adp-inbox .adp-company:hover { background: #eef3f8; }
+  .adp-inbox .adp-company.is-active { background: #e0f2fe; }
+  .adp-inbox .adp-company-head { display: flex; justify-content: space-between; align-items: center; }
+  .adp-inbox .adp-company-head strong { color: #00395E; font-size: 14px; }
+  .adp-inbox .adp-pill { background: #b42318; color: #fff; border-radius: 999px; padding: 0 6px; font-size: 11px; font-weight: 700; }
+  .adp-inbox .adp-company-chips { display: flex; gap: 4px; margin-top: 2px; }
+  .adp-inbox .adp-channel-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; padding: 0 6px; border-radius: 999px; font-size: 11px; color: #fff; }
+  .adp-inbox .adp-channel-chip.ch-email   { background: #1d4ed8; }
+  .adp-inbox .adp-channel-chip.ch-whatsapp,
+  .adp-inbox .adp-channel-chip.ch-wa      { background: #25d366; }
+  .adp-inbox .adp-channel-chip.ch-telegram,
+  .adp-inbox .adp-channel-chip.ch-tg      { background: #0088cc; }
+  .adp-inbox .adp-channel-chip.ch-sharepoint,
+  .adp-inbox .adp-channel-chip.ch-sp      { background: #0f766e; }
+
+  .adp-inbox .adp-avatar { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 999px; background: #00395E; color: #fff; font-size: 11px; font-weight: 700; flex: 0 0 auto; }
+  .adp-inbox .adp-avatar-unassigned { background: #d1d5db; color: #4b5563; }
+
+  .adp-inbox .adp-inbox-docs { background: #fff; border: 1px solid #e1e6ec; border-radius: 8px; padding: 10px 12px; min-width: 0; }
+  .adp-inbox .adp-endpoint-bar { margin-bottom: 8px; }
+  .adp-inbox .adp-endpoint-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px; background: #f7f9fc; border-radius: 6px; border: 1px dashed #d6dde6; font-size: 12px; }
+  .adp-inbox .adp-endpoint-row strong { color: #00395E; margin-right: 6px; }
+  .adp-inbox .adp-endpoint-chip { display: inline-flex; gap: 4px; align-items: center; padding: 3px 8px; border-radius: 999px; color: #fff; font-size: 11px; text-decoration: none; }
+  .adp-inbox .adp-endpoint-chip.ch-email { background: #1d4ed8; }
+  .adp-inbox .adp-endpoint-chip.ch-wa    { background: #25d366; }
+  .adp-inbox .adp-endpoint-chip.ch-tg    { background: #0088cc; }
+  .adp-inbox .adp-endpoint-chip.ch-sp    { background: #0f766e; }
+  .adp-inbox .adp-endpoint-chip button   { background: rgba(255,255,255,.2); border: 0; color: #fff; cursor: pointer; border-radius: 4px; padding: 0 4px; font-size: 11px; }
+
+  .adp-inbox .adp-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .adp-inbox .adp-pill-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .adp-inbox .adp-pill { background: #f7f9fc; border: 1px solid #d6dde6; color: #00395E; padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 12px; }
+  .adp-inbox .adp-pill.is-active { background: #00395E; color: #fff; border-color: #00395E; }
+  .adp-inbox .adp-toolbar-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .adp-inbox .adp-toolbar-filters select, .adp-inbox .adp-toolbar-filters input { padding: 4px 6px; font-size: 13px; }
+  .adp-inbox .adp-toggle { font-size: 12px; color: #6b7280; display: inline-flex; align-items: center; gap: 4px; }
+
+  .adp-inbox .adp-doc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 540px; overflow-y: auto; }
+  .adp-inbox .adp-doc-row { display: grid; grid-template-columns: 36px 1fr auto auto auto; gap: 10px; padding: 8px 10px; border: 1px solid #e1e6ec; border-left: 4px solid #00A8E8; border-radius: 6px; background: #fff; align-items: center; cursor: pointer; }
+  .adp-inbox .adp-doc-row.status-pending-review { border-left-color: #d97706; }
+  .adp-inbox .adp-doc-row.status-queued         { border-left-color: #6b7280; }
+  .adp-inbox .adp-doc-row.status-imported       { border-left-color: #15803d; }
+  .adp-inbox .adp-doc-row.status-error          { border-left-color: #b42318; }
+  .adp-inbox .adp-doc-row:hover { background: #f7fbff; }
+  .adp-inbox .adp-kind-icon { font-size: 20px; }
+  .adp-inbox .adp-doc-name { font-weight: 600; color: #00395E; font-size: 14px; }
+  .adp-inbox .adp-doc-sub  { font-size: 12px; margin-top: 2px; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .adp-inbox .adp-doc-status .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .adp-inbox .badge-pending-review { background: #fff3cd; color: #856404; }
+  .adp-inbox .badge-queued         { background: #e5e7eb; color: #374151; }
+  .adp-inbox .badge-imported       { background: #d1f3e0; color: #0a6b3a; }
+  .adp-inbox .badge-error          { background: #f6d6d6; color: #842029; }
+  .adp-inbox .adp-doc-actions .btn { font-size: 12px; padding: 2px 6px; }
+  .adp-inbox .adp-empty { padding: 30px; text-align: center; color: #6b7280; }
+
+  /* Drawer */
+  .adp-inbox .adp-drawer { position: fixed; right: 16px; bottom: 16px; width: 600px; max-width: 96vw; background: #fff; border: 1px solid #d6dde6; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,.16); padding: 12px 14px; z-index: 60; }
+  .adp-inbox .adp-drawer-head { display: flex; justify-content: space-between; align-items: center; }
+  .adp-inbox .adp-tabs { display: flex; gap: 4px; border-bottom: 1px solid #e1e6ec; margin: 8px 0 10px; }
+  .adp-inbox .adp-tab { background: transparent; border: 0; padding: 6px 10px; cursor: pointer; color: #6b7280; font-weight: 600; font-size: 13px; border-bottom: 2px solid transparent; }
+  .adp-inbox .adp-tab.is-active { color: #00395E; border-bottom-color: #00A8E8; }
+  .adp-inbox .adp-tab-panel { display: none; }
+  .adp-inbox .adp-tab-panel.is-active { display: block; }
+  .adp-inbox .adp-preview-card { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; padding: 12px; background: #f7f9fc; border-radius: 8px; }
+  .adp-inbox .adp-preview-icon { font-size: 42px; text-align: center; }
+  .adp-inbox .adp-preview-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px; }
+  .adp-inbox .adp-preview-meta .muted { display: block; font-size: 11px; }
+  .adp-inbox .adp-preview-meta strong { color: #00395E; }
+  .adp-inbox .adp-preview-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .adp-inbox .adp-preview-actions select { padding: 4px 6px; }
+  .adp-inbox .adp-activity { list-style: none; padding: 0; margin: 0 0 10px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .adp-inbox .adp-act { background: #f7f9fc; border-left: 3px solid #00A8E8; padding: 6px 10px; border-radius: 4px; font-size: 13px; }
+  .adp-inbox .adp-act-status { border-left-color: #6b7280; background: #f3f4f6; }
+  .adp-inbox .adp-act-meta { font-size: 11px; color: #6b7280; margin-bottom: 2px; }
+  .adp-inbox .adp-composer textarea { width: 100%; min-height: 60px; padding: 6px 8px; border: 1px solid #d6dde6; border-radius: 6px; font: inherit; box-sizing: border-box; }
+  .adp-inbox .adp-composer-actions { display: flex; justify-content: flex-end; margin-top: 6px; }
+  .adp-inbox .adp-collab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+  .adp-inbox .adp-collab-card { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid #e1e6ec; border-radius: 8px; text-decoration: none; color: #00395E; cursor: pointer; background: #fff; text-align: left; }
+  .adp-inbox .adp-collab-card .ic { font-size: 22px; }
+  .adp-inbox .adp-collab-card:hover { background: #f0f7fb; }
+  .adp-inbox .adp-collab-card.ch-teams { border-left: 4px solid #5059c9; }
+  .adp-inbox .adp-collab-card.ch-sp    { border-left: 4px solid #0f766e; }
+  .adp-inbox .adp-collab-card.ch-email { border-left: 4px solid #1d4ed8; }
+  .adp-inbox .adp-collab-card.ch-link  { border-left: 4px solid #6b7280; }
+  .adp-inbox .adp-collab-assign { margin-top: 10px; }
+
+  /* Live feed */
+  .adp-inbox .adp-live-feed { margin-top: 18px; }
+  .adp-inbox .adp-live-feed > summary { cursor: pointer; list-style: none; }
+  .adp-inbox .adp-live-feed > summary::-webkit-details-marker { display: none; }
+  .adp-inbox .adp-live-feed > summary::before { content: '▸ '; color: #6b7280; font-size: 12px; }
+  .adp-inbox .adp-live-feed[open] > summary::before { content: '▾ '; }
+  .adp-inbox .adp-live-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .adp-inbox .adp-telegram-embed, .adp-inbox .adp-telegram-files { border: 1px solid #e3e3e3; border-radius: 6px; background: #fff; overflow: hidden; }
+  .adp-inbox .adp-tg-head { display: flex; align-items: center; gap: .75rem; padding: .6rem .9rem; background: #0088cc; color: #fff; }
+  .adp-inbox .adp-tg-head a { color: #fff; text-decoration: underline; font-size: .85rem; }
+  .adp-inbox .adp-tg-posts { padding: .75rem; background: #f7f7f7; max-height: 420px; overflow: auto; font-size: .9rem; color: #666; }
+  .adp-inbox .adp-tg-files-head { display: flex; align-items: center; gap: .5rem; padding: .6rem .9rem; border-bottom: 1px solid #eee; }
+  .adp-inbox #adpTgFiles { padding: .6rem .9rem; font-size: .9rem; color: #666; }
+  .adp-inbox .adp-live-placeholder { grid-column: 1 / -1; padding: 16px; background: #f7f9fc; border-radius: 6px; border: 1px dashed #d6dde6; }
+
+  .adp-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #00395E; color: #fff; padding: 8px 14px; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 80; font-size: 13px; }
+
+  @media (max-width: 980px) {
+    .adp-inbox .adp-inbox-grid { grid-template-columns: 1fr; }
+    .adp-inbox .adp-live-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+
+{% include 'adp-shell-close' %}

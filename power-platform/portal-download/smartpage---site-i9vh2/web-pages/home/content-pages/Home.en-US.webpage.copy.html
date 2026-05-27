@@ -1,0 +1,93 @@
+{% assign is_authenticated = user.id %}
+<div data-component-theme="portalThemeColor1" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; text-align: left; min-height: auto;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap; flex-direction: row-reverse;">
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;"><img src="/Geometric-4.png" alt="Accountant Delivery Platform" name="Geometric-4.png" style="width: 100%; height: auto; max-width: 100%;" /></div>
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <h2>Accountant Delivery Platform</h2>
+      <p>Secure client operations for Tally, reporting, automation, and document workflows &mdash; all in one Microsoft 365 native workspace.</p>
+      {% if is_authenticated %}
+      <button onclick="window.location.href='/dashboard'" type="button" value="/dashboard" class="button1">Go to Dashboard</button>
+      {% else %}
+      <button onclick="window.location.href='/SignIn'" type="button" value="/SignIn" class="button1">Sign in with Microsoft 365</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<div data-component-theme="portalThemeColor3" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; min-height: 28px;"></div>
+<div class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; text-align: left; min-height: auto;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap;">
+    <div class="col-lg-12 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <h2 style="text-align: center;">One portal for every client engagement</h2>
+      <p style="text-align: center;">Onboard companies, launch Tally sessions, ingest documents from email and messaging, and review insights &mdash; all governed by Dataverse and Microsoft Entra ID.</p>
+    </div>
+  </div>
+</div>
+<div class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; text-align: left; min-height: auto;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap;">
+    <div class="col-lg-4 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <img src="/Circle-1.png" alt="Launch Tally" name="Circle-1.png" style="width: 108px; height: 108px; max-width: 100%; margin-left: auto; margin-right: auto;" />
+      <h3 style="text-align: center;">Launch Tally</h3>
+      <p style="text-align: center;">One-click secure RDP launch into your client&rsquo;s Tally instance with entitlement checks and full session audit.</p>
+    </div>
+    <div class="col-lg-4 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <img src="/Circle-2.png" alt="Reporting" name="Circle-2.png" style="width: 108px; height: 108px; max-width: 100%; margin-left: auto; margin-right: auto;" />
+      <h3 style="text-align: center;">Reporting &amp; Insights</h3>
+      <p style="text-align: center;">Power BI dashboards per company &mdash; GST reconciliation, bank statements and Tally extracts refreshed automatically.</p>
+    </div>
+    <div class="col-lg-4 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <img src="/Circle-3.png" alt="Document Automation" name="Circle-3.png" style="width: 108px; height: 108px; max-width: 100%; margin-left: auto; margin-right: auto;" />
+      <h3 style="text-align: center;">Document Automation</h3>
+      <p style="text-align: center;">Ingest invoices and statements from Email, WhatsApp and Telegram. Classified by AI, stored in SharePoint, tracked in Dataverse.</p>
+    </div>
+  </div>
+</div>
+<div data-component-theme="portalThemeColor6" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; min-height: 52px;"></div>
+<div data-component-theme="portalThemeColor5" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; height: 15px; min-height: 52px;"></div>
+<div data-component-theme="portalThemeColor3" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; text-align: left; min-height: auto;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap; flex-direction: row;">
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <h2>See it in action</h2>
+      <p>Watch a quick tour of the Accountant Delivery Platform &mdash; from onboarding a client company to launching Tally and reviewing the audit trail.</p>
+      {% if is_authenticated %}
+      <button onclick="window.location.href='/dashboard'" type="button" value="/dashboard" class="button1">Open the Dashboard</button>
+      {% else %}
+      <button onclick="window.location.href='/SignIn'" type="button" value="/SignIn" class="button1">Sign in to get started</button>
+      {% endif %}
+    </div>
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;"><video allowfullscreen="allowfullscreen" src="/Video-1.mp4" controls="" muted="" playsinline="" style="max-width: 100%;"></video></div>
+  </div>
+</div>
+<div data-component-theme="portalThemeColor1" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; min-height: 52px;"></div>
+<div class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; text-align: left; min-height: auto;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap;">
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;"><img src="/Graph-1.png" alt="Insights" name="Graph-1.png" style="width: 100%; height: auto; max-width: 100%;" /></div>
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <h2>Built on Dataverse</h2>
+      <p>Companies, users, entitlements, sessions and audit logs live in a governed Dataverse model with row-level security, so accountants only see what they should and client users see only their own company.</p>
+    </div>
+  </div>
+</div>
+<div class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; text-align: left; min-height: auto;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap; flex-direction: row-reverse;">
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;"><img src="/Site-mockup-1.png" alt="Microsoft 365 native" name="Site-mockup-1.png" style="width: 100%; height: auto; max-width: 100%;" /></div>
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <h2>Microsoft 365 native</h2>
+      <p>Single sign-on with Microsoft Entra ID, documents in SharePoint, conversations in Teams, automations in Power Automate. No new identity to manage, no new place to look.</p>
+    </div>
+  </div>
+</div>
+<div data-component-theme="portalThemeColor3" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; text-align: left; min-height: auto;">
+  <div class="container" style="padding: 0px; display: flex; flex-wrap: wrap; flex-direction: row;">
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;"><img src="/Geometric-2.png" alt="Get started" name="Geometric-2.png" style="width: 100%; height: auto; max-width: 100%;" /></div>
+    <div class="col-lg-6 columnBlockLayout" style="flex-grow: 1; display: flex; flex-direction: column; min-width: 300px;">
+      <h2>Ready when you are</h2>
+      <p>Onboard your first company in minutes. We&rsquo;ll provision the SharePoint site, Entra group, Power BI workspace and storage container for you.</p>
+      {% if is_authenticated %}
+      <button onclick="window.location.href='/companies'" type="button" value="/companies" class="button1">Onboard a company</button>
+      {% else %}
+      <button onclick="window.location.href='/SignIn'" type="button" value="/SignIn" class="button1">Sign in with Microsoft 365</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<div data-component-theme="portalThemeColor2" class="row sectionBlockLayout" style="padding: 8px; margin: 0px; display: flex; flex-wrap: wrap; min-height: 52px;"></div>

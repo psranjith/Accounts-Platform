@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "connectionParameters": {
+      "token": {
+        "type": "securestring",
+        "uiDefinition": {
+          "displayName": "Access Token",
+          "description": "WhatsApp Cloud API token",
+          "tooltip": "Enter the token from Meta app settings",
+          "constraints": {
+            "required": "true"
+          }
+        }
+      }
+    },
+    "iconBrandColor": "#25D366",
+    "capabilities": [],
+    "policyTemplateInstances": []
+  }
+}

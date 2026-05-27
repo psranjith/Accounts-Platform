@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ADP Portal — Page Appearance Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="../power-platform/portal-download/smart---site-mgrkm/web-files/bootstrap.min.css" />
+  <link rel="stylesheet" href="../power-platform/portal-download/smart---site-mgrkm/web-files/theme.css" />
+  <link rel="stylesheet" href="./preview.css" />
+</head>
+<body>
+  <header class="adp-topbar">
+    <div class="adp-brand">
+      <img class="adp-logo-img" src="./assets/smartsoft-logo.svg" alt="Smartsoft" />
+      <strong id="brandName">Smart Accounting Reports Platform</strong>
+    </div>
+    <nav class="adp-nav">
+      <label>Page
+        <select id="pageSelect"></select>
+      </label>
+      <label>Role
+        <select id="roleSelect">
+          <option>Smartsoft Operator</option>
+          <option>Firm Admin</option>
+          <option selected>Accountant</option>
+          <option>Client</option>
+        </select>
+      </label>
+      <label>
+        <input type="checkbox" id="authToggle" checked /> Signed in
+      </label>
+      <button id="msalSignIn"  type="button" class="adp-auth-btn">Sign in to M365</button>
+      <button id="msalSignOut" type="button" class="adp-auth-btn" hidden>Sign out</button>
+      <span id="msalUser" class="adp-auth-user"></span>
+    </nav>
+  </header>
+
+  <main class="adp-stage container">
+    <div id="renderTarget" class="adp-page"></div>
+  </main>
+
+  <footer class="adp-foot">
+    <small>Static preview · Liquid rendered client-side with stubbed Dataverse data. Power Pages controls (entityform, entitylist, SharePoint, Power BI, Copilot) are shown as placeholders.</small>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/liquidjs@10.16.1/dist/liquid.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
+  <script src="./auth-config.js"></script>
+  <script src="./preview.js" type="module"></script>
+</body>
+</html>

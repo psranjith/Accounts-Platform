@@ -1,0 +1,55 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "ADP WhatsApp Connector",
+    "description": "Custom connector for WhatsApp Cloud API media retrieval",
+    "version": "1.0"
+  },
+  "host": "graph.facebook.com",
+  "basePath": "/v19.0",
+  "schemes": [
+    "https"
+  ],
+  "securityDefinitions": {
+    "oauth2_auth": {
+      "type": "oauth2",
+      "flow": "accessCode",
+      "authorizationUrl": "https://www.facebook.com/dialog/oauth",
+      "tokenUrl": "https://graph.facebook.com/oauth/access_token",
+      "scopes": {
+        "whatsapp_business_messaging": "Send and receive WhatsApp messages"
+      }
+    }
+  },
+  "paths": {
+    "/{mediaId}": {
+      "get": {
+        "summary": "Get media metadata",
+        "operationId": "GetMediaMetadata",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "oauth2_auth": [
+              "whatsapp_business_messaging"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

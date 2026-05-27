@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" width="64" height="80" role="img" aria-label="Remote Desktop file">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e9eef5"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#005B96"/>
+    </linearGradient>
+  </defs>
+  <path d="M6 2 h40 l12 12 v62 a2 2 0 0 1 -2 2 H6 a2 2 0 0 1 -2 -2 V4 a2 2 0 0 1 2 -2 z"
+        fill="url(#paper)" stroke="#9aa6b2" stroke-width="1"/>
+  <path d="M46 2 v10 a2 2 0 0 0 2 2 h10" fill="none" stroke="#9aa6b2" stroke-width="1"/>
+  <rect x="12" y="26" width="40" height="26" rx="2" fill="url(#screen)" stroke="#00395E" stroke-width="1"/>
+  <rect x="14" y="28" width="36" height="20" fill="#ffffff" opacity="0.85"/>
+  <rect x="26" y="52" width="12" height="3" fill="#00395E"/>
+  <rect x="22" y="55" width="20" height="2" rx="1" fill="#00395E"/>
+  <path d="M20 38 h14 l0 -3 l6 5 l-6 5 l0 -3 h-14 z" fill="#00A6A6"/>
+  <text x="32" y="72" font-family="Segoe UI, sans-serif" font-size="9" font-weight="700" fill="#00395E" text-anchor="middle">.RDP</text>
+</svg>

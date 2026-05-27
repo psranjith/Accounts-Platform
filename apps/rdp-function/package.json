@@ -1,0 +1,13 @@
+{
+  "name": "adp-rdp-function",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Generates short-lived signed RDP files for existing RDS Gateway",
+  "main": "RdpGenerate/index.js",
+  "scripts": {
+    "start": "func start"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
+  }
+}

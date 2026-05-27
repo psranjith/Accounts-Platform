@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 120" width="440" height="120" role="img" aria-label="Smartsoft - 29 years of trusted IT solutions">
+  <style>
+    .word { font: italic 900 64px "Segoe UI", system-ui, sans-serif; fill: #111; letter-spacing: -1px; }
+    .tag  { font: italic 500 18px "Segoe UI", system-ui, sans-serif; fill: #111; letter-spacing: .2px; }
+  </style>
+  <text x="0" y="68" class="word">Smartsoft</text>
+  <polygon points="372,12 410,12 372,72" fill="#FFCB05"/>
+  <text x="0" y="100" class="tag">29 years of trusted IT solutions</text>
+</svg>

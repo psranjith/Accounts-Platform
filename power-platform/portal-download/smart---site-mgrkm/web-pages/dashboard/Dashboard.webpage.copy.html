@@ -1,0 +1,13 @@
+{% include 'adp-user-context' %}
+<section>
+  <h2>Welcome, {{ user.fullname | escape }}</h2>
+  <div class="tile-grid">
+    <a href="/launch-tally" class="tile">Launch Tally</a>
+    <a href="/reports" class="tile">Power BI</a>
+    <a href="/automations" class="tile">Power Automate</a>
+    <a href="/power-query" class="tile">Power Query</a>
+    <a href="/documents" class="tile">Documents</a>
+    <a href="/assistant" class="tile">Smart Agent</a>
+    <a href="/inbox" class="tile">Data Capture Inbox</a>
+  </div>
+</section>

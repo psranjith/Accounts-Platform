@@ -1,0 +1,9 @@
+{% include 'adp-user-context' %}
+<section>
+  <h2>Documents</h2>
+  <p>This page hosts SharePoint integration configured per company.</p>
+  <div id="sharepoint-control" data-company-id="{{ adp_companyid }}">
+    {% comment %} Replace with the Power Pages SharePoint integration component in Portal Management. {% endcomment %}
+    <p>SharePoint site: {{ adp_sharepointsiteurl }}</p>
+  </div>
+</section>

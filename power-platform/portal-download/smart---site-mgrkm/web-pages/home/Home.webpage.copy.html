@@ -1,0 +1,10 @@
+{% assign is_authenticated = user.id %}
+<section class="hero">
+  <h1>Accountant Delivery Platform</h1>
+  <p>Secure client operations for Tally, reporting, automation, and document workflows.</p>
+  {% if is_authenticated %}
+    <a class="btn btn-primary" href="/dashboard">Go to Dashboard</a>
+  {% else %}
+    <a class="btn btn-primary" href="/SignIn">Sign in with Microsoft 365</a>
+  {% endif %}
+</section>
