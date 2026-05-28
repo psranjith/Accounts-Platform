@@ -21,14 +21,16 @@
 {% endcomment %}
 
 {% assign role_norm = adp_role | downcase %}
-{% assign is_accountant = false %}
+{% assign is_operator   = false %}
 {% assign is_admin      = false %}
+{% assign is_accountant = false %}
 {% assign is_client     = false %}
-{% if role_norm contains 'accountant' %}{% assign is_accountant = true %}{% endif %}
-{% if role_norm contains 'admin'      %}{% assign is_admin      = true %}{% endif %}
-{% if is_accountant == false and is_admin == false %}{% assign is_client = true %}{% endif %}
+{% if adp_personagroup == 'operator'   %}{% assign is_operator   = true %}{% endif %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_admin      = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if adp_personagroup == 'client'     %}{% assign is_client     = true %}{% endif %}
 {% assign can_manage = false %}
-{% if is_accountant or is_admin %}{% assign can_manage = true %}{% endif %}
+{% if is_operator or is_accountant or is_admin %}{% assign can_manage = true %}{% endif %}
 
 {% comment %} Current accountant staff id (for "My queue") — production should derive from logged-in user. {% endcomment %}
 {% assign current_staffid = 'stf-priya' %}
@@ -37,7 +39,8 @@
   <header class="adp-inbox-head">
     <h2>Data Capture Inbox</h2>
     <p class="adp-meta">
-      {% if is_accountant %}Signed in as <strong>Accountant</strong> &middot; portfolio across assigned clients
+      {% if is_operator   %}Signed in as <strong>Smartsoft Operator</strong> &middot; cross-firm platform view
+      {% elsif is_accountant %}Signed in as <strong>Accountant</strong> &middot; portfolio across assigned clients
       {% elsif is_admin  %}Company <strong>{{ adp_companyid }}</strong> &middot; Role <strong>Admin</strong>
       {% else %}Company <strong>{{ adp_companyid }}</strong> &middot; Role <strong>Client</strong> (read-only)
       {% endif %}
@@ -59,7 +62,7 @@
       <attribute name="adp_assigneeid" />
       <attribute name="adp_assigneename" />
       <attribute name="adp_messageurl" />
-      {% unless is_accountant %}
+      {% unless is_accountant or is_operator %}
       <filter>
         <condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" />
       </filter>
@@ -168,7 +171,9 @@
         {% for c in companies %}
           {% comment %} Role gating: Admin / Client see only own company; Accountant sees assigned ones. {% endcomment %}
           {% assign visible = false %}
-          {% if is_accountant %}
+          {% if is_operator %}
+            {% assign visible = true %}
+          {% elsif is_accountant %}
             {% for a in assignments %}
               {% if a.adp_companyid.id == c.adp_companyid and a.adp_staffid == current_staffid %}{% assign visible = true %}{% endif %}
             {% endfor %}

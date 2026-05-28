@@ -14,6 +14,7 @@
     <div class="dash-kpi"><span>Client companies</span><strong>33</strong><small>across all firms</small></div>
     <div class="dash-kpi"><span>Accountants</span><strong>17</strong><small>total seats</small></div>
     <div class="dash-kpi"><span>Connector health</span><strong>4 / 5</strong><small>1 degraded</small></div>
+    <div class="dash-kpi"><span>Audit module</span><strong>Healthy</strong><small>4 programs · 15 rules</small></div>
   </div>
   <div class="tile-grid">
     <a href="/operator" class="tile">Operator console</a>
@@ -21,6 +22,7 @@
     <a href="/operator#catalog" class="tile">Catalog</a>
     <a href="/operator#connectors" class="tile">Connectors</a>
     <a href="/operator#health" class="tile">Platform health</a>
+    <a href="/audit" class="tile">Audit module</a>
   </div>
 
 {% elsif adp_personagroup == 'firmadmin' %}
@@ -33,12 +35,16 @@
     <div class="dash-kpi"><span>Open tasks</span><strong>17</strong><small>3 overdue</small></div>
     <div class="dash-kpi"><span>Documents in queue</span><strong>24</strong><small>last 7 days</small></div>
     <div class="dash-kpi"><span>Plan utilisation</span><strong>5 / 10</strong><small>Growth plan</small></div>
+    <div class="dash-kpi dash-kpi-warn"><span>Audits in flight</span><strong>4</strong><small>2 High-severity exceptions</small></div>
+    <div class="dash-kpi"><span>Audit PBC overdue</span><strong>1</strong><small>Acme · RPT schedule</small></div>
   </div>
   <div class="tile-grid">
     <a href="/clients" class="tile">Clients</a>
     <a href="/teams" class="tile">Team</a>
     <a href="/inbox" class="tile">Inbox</a>
     <a href="/service-delivery" class="tile">Service Delivery</a>
+    <a href="/audit" class="tile">Audit</a>
+    <a href="/audit-exceptions" class="tile">Audit exceptions</a>
     <a href="/insights" class="tile">Insights</a>
     <a href="/agents" class="tile">Agents</a>
     <a href="/billing" class="tile">Billing</a>
@@ -55,11 +61,15 @@
     <div class="dash-kpi"><span>Inbox to review</span><strong>9</strong><small>3 new</small></div>
     <div class="dash-kpi"><span>Closures this week</span><strong>2</strong><small>Acme, Beta</small></div>
     <div class="dash-kpi"><span>My clients</span><strong>3</strong><small>assigned</small></div>
+    <div class="dash-kpi"><span>My open workpapers</span><strong>2</strong><small>1 ready for review</small></div>
+    <div class="dash-kpi dash-kpi-warn"><span>Exceptions on my engagements</span><strong>3</strong><small>1 High</small></div>
   </div>
   <div class="tile-grid">
     <a href="/clients" class="tile">My clients</a>
     <a href="/inbox" class="tile">Inbox</a>
     <a href="/service-delivery" class="tile">Service Delivery</a>
+    <a href="/audit" class="tile">Audit</a>
+    <a href="/audit-exceptions" class="tile">Audit exceptions</a>
     <a href="/insights" class="tile">Insights</a>
     <a href="/documents" class="tile">Documents</a>
     <a href="/launch-tally" class="tile">Launch Tally</a>
@@ -72,8 +82,14 @@
     <h2>Welcome, {{ user.fullname | escape }}</h2>
     <p class="muted">Your accounting workspace, in one place.</p>
   </div>
+  <div class="dash-kpis">
+    <div class="dash-kpi"><span>Open audit requests</span><strong>2</strong><small>1 overdue</small></div>
+    <div class="dash-kpi"><span>My audit engagement</span><strong>Fieldwork</strong><small>FY 2024-25</small></div>
+  </div>
   <div class="tile-grid">
     <a href="/inbox" class="tile">Send documents</a>
+    <a href="/client-requests" class="tile">Audit requests</a>
+    <a href="/audit" class="tile">My audit</a>
     <a href="/documents" class="tile">My documents</a>
     <a href="/insights" class="tile">My reports</a>
     <a href="/service-delivery" class="tile">Engagements</a>
@@ -91,6 +107,8 @@
   .dash-kpi span { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
   .dash-kpi strong { display:block; font-size:24px; color:#00395E; margin:2px 0; }
   .dash-kpi small { color:#6b7280; }
+  .dash-kpi-warn { border-color:#fca5a5; background:#fef2f2; }
+  .dash-kpi-warn strong { color:#991b1b; }
   .tile-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
   .tile { display:block; background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:18px; color:#00395E; font-weight:600; text-decoration:none; }
   .tile:hover { border-color:#00A8E8; box-shadow:0 2px 8px rgba(0,57,94,.08); }

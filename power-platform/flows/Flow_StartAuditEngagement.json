@@ -1,0 +1,172 @@
+{
+  "name": "Flow_StartAuditEngagement",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_StartAuditEngagement",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "companyId":   { "type": "string" },
+                "programCode": { "type": "string" },
+                "periodFrom":  { "type": "string" },
+                "periodTo":    { "type": "string" },
+                "materiality": { "type": "number" },
+                "leadPartner": { "type": "string" },
+                "leadManager": { "type": "string" }
+              },
+              "required": ["companyId", "programCode", "periodFrom", "periodTo"]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Create_Audit_Engagement": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "post",
+            "path": "/v2/datasets/default.cds/tables/adp_auditengagements/items",
+            "body": {
+              "adp_companyid@odata.bind":  "/adp_companies(@{triggerBody()?['companyId']})",
+              "adp_programcode":           "@triggerBody()?['programCode']",
+              "adp_periodfrom":            "@triggerBody()?['periodFrom']",
+              "adp_periodto":              "@triggerBody()?['periodTo']",
+              "adp_materiality":           "@triggerBody()?['materiality']",
+              "adp_leadpartner":           "@triggerBody()?['leadPartner']",
+              "adp_leadmanager":           "@triggerBody()?['leadManager']",
+              "adp_status":                "Planning"
+            }
+          }
+        },
+        "Get_Audit_Procedures": {
+          "runAfter": { "Create_Audit_Engagement": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "get",
+            "path": "/v2/datasets/default.cds/tables/adp_auditprocedures/items",
+            "queries": { "$filter": "adp_programcode eq '@{triggerBody()?[''programCode'']}'" }
+          }
+        },
+        "Seed_Workpapers": {
+          "runAfter": { "Get_Audit_Procedures": ["Succeeded"] },
+          "type": "Foreach",
+          "foreach": "@body('Get_Audit_Procedures')?['value']",
+          "actions": {
+            "Create_Workpaper": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                "method": "post",
+                "path": "/v2/datasets/default.cds/tables/adp_workpapers/items",
+                "body": {
+                  "adp_auditengagementid@odata.bind": "/adp_auditengagements(@{body('Create_Audit_Engagement')?['adp_auditengagementid']})",
+                  "adp_procedurecode":   "@items('Seed_Workpapers')?['adp_code']",
+                  "adp_procedurename":   "@items('Seed_Workpapers')?['adp_name']",
+                  "adp_proceduresection":"@items('Seed_Workpapers')?['adp_section']",
+                  "adp_assertion":       "@items('Seed_Workpapers')?['adp_assertion']",
+                  "adp_risklevel":       "@items('Seed_Workpapers')?['adp_risklevel']",
+                  "adp_samplesize":      "@items('Seed_Workpapers')?['adp_suggestedsamplesize']",
+                  "adp_status":          "Open"
+                }
+              }
+            },
+            "Create_SP_Folder": {
+              "runAfter": { "Create_Workpaper": ["Succeeded"] },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": { "connectionReferenceName": "shared_sharepointonline" },
+                "method": "post",
+                "path": "/datasets/@{encodeURIComponent('https://intelliblend.sharepoint.com/sites/Smartsoft646')}/folders",
+                "body": { "path": "Audit/@{triggerBody()?['programCode']}/@{items('Seed_Workpapers')?['adp_code']}" }
+              }
+            }
+          }
+        },
+        "Seed_Client_Requests": {
+          "runAfter": { "Seed_Workpapers": ["Succeeded"] },
+          "type": "Foreach",
+          "foreach": "@body('Get_Audit_Procedures')?['value']",
+          "actions": {
+            "If_Evidence_Needed": {
+              "type": "If",
+              "expression": { "and": [ { "not": { "equals": ["@items('Seed_Client_Requests')?['adp_evidencetype']", "Computation"] } } ] },
+              "actions": {
+                "Create_Client_Request": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                    "method": "post",
+                    "path": "/v2/datasets/default.cds/tables/adp_clientrequests/items",
+                    "body": {
+                      "adp_auditengagementid@odata.bind": "/adp_auditengagements(@{body('Create_Audit_Engagement')?['adp_auditengagementid']})",
+                      "adp_item":        "@{items('Seed_Client_Requests')?['adp_name']} — supporting @{items('Seed_Client_Requests')?['adp_evidencetype']}",
+                      "adp_requesttag":  "REQ-@{substring(guid(),0,4)}",
+                      "adp_duedate":     "@addDays(utcNow(), 7)",
+                      "adp_status":      "Open"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Email_PBC_List_To_Client": {
+          "runAfter": { "Seed_Client_Requests": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_office365" },
+            "method": "post",
+            "path": "/v2/Mail",
+            "body": {
+              "To":      "@triggerBody()?['leadPartner']",
+              "Subject": "Audit started — @{triggerBody()?['programCode']} for @{triggerBody()?['companyId']}",
+              "Body":    "Your audit engagement has been opened. The Prepared-by-Client request list is available at /client-requests.",
+              "Importance": "Normal"
+            }
+          }
+        },
+        "Write_Audit_Log": {
+          "runAfter": { "Email_PBC_List_To_Client": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "post",
+            "path": "/v2/datasets/default.cds/tables/adp_auditlogs/items",
+            "body": {
+              "adp_action":         "Create",
+              "adp_entityname":     "adp_auditengagement",
+              "adp_recordid":       "@{body('Create_Audit_Engagement')?['adp_auditengagementid']}",
+              "adp_actor":          "@{workflow().run.name}",
+              "adp_summary":        "Started audit engagement @{triggerBody()?['programCode']} for company @{triggerBody()?['companyId']}",
+              "adp_timestamp":      "@utcNow()"
+            }
+          }
+        },
+        "Response": {
+          "runAfter": { "Write_Audit_Log": ["Succeeded"] },
+          "type": "Response",
+          "inputs": {
+            "statusCode": 200,
+            "body": {
+              "auditEngagementId": "@body('Create_Audit_Engagement')?['adp_auditengagementid']",
+              "workpapersCreated": "@length(body('Get_Audit_Procedures')?['value'])"
+            }
+          }
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": { "connectionName": "shared-cds", "source": "Embedded" },
+      "shared_sharepointonline":         { "connectionName": "shared-sp",  "source": "Embedded" },
+      "shared_office365":                { "connectionName": "shared-o365","source": "Embedded" }
+    }
+  }
+}

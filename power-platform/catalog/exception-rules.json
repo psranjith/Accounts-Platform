@@ -1,0 +1,126 @@
+{
+  "$schema": "https://example.com/schemas/adp-exception-rules.json",
+  "description": "Automated exception rules used by Flow_RunExceptionEngine and audit-exceptions.pq. severity drives the dashboard badge and the Teams escalation in the flow.",
+  "rules": [
+    {
+      "code": "JE.WEEKEND",
+      "name": "Journal entry posted on a weekend",
+      "source": "Tally",
+      "severity": "Medium",
+      "description": "Manual journal entries posted on Saturday/Sunday — possible after-hours or bypass.",
+      "params": { "weekdayList": [0, 6] }
+    },
+    {
+      "code": "JE.AFTER_CLOSE",
+      "name": "Journal entry after period close",
+      "source": "Tally",
+      "severity": "High",
+      "description": "Entries posted in a closed period — should be approved adjusting JEs only.",
+      "params": { "graceDays": 0 }
+    },
+    {
+      "code": "JE.ROUND_AMOUNT",
+      "name": "Round-amount manual journal entry",
+      "source": "Tally",
+      "severity": "Low",
+      "description": "Amounts ending in 000 above threshold — often estimates or plug entries.",
+      "params": { "thresholdAmount": 100000, "lastNZeros": 3 }
+    },
+    {
+      "code": "JE.DUPLICATE",
+      "name": "Duplicate voucher reference",
+      "source": "Tally",
+      "severity": "High",
+      "description": "Same voucher number used by multiple postings on the same date and ledger.",
+      "params": {}
+    },
+    {
+      "code": "BANK.UNRECONCILED.30D",
+      "name": "Bank entry unreconciled > 30 days",
+      "source": "Bank",
+      "severity": "High",
+      "description": "Bank statement line that has not been matched to a ledger entry within 30 days of statement date.",
+      "params": { "ageDays": 30 }
+    },
+    {
+      "code": "BANK.LARGE_OUTFLOW",
+      "name": "Large bank outflow without matching ledger entry",
+      "source": "Bank",
+      "severity": "High",
+      "description": "Single debit > materiality with no matched ledger posting.",
+      "params": { "useMateriality": true }
+    },
+    {
+      "code": "GST.VARIANCE.PCT",
+      "name": "GST sales vs purchase variance over threshold",
+      "source": "GST",
+      "severity": "Medium",
+      "description": "Per-invoice variance from gst-reconciliation.pq exceeds tolerance.",
+      "params": { "variancePct": 1.0, "minAmount": 5000 }
+    },
+    {
+      "code": "GST.BOOKS_VS_3B",
+      "name": "Books outward supplies vs GSTR-3B variance",
+      "source": "GST",
+      "severity": "High",
+      "description": "Aggregate books turnover - GSTR-3B taxable value exceeds materiality.",
+      "params": { "useMateriality": true }
+    },
+    {
+      "code": "GST.ITC_VS_2B",
+      "name": "ITC claimed vs GSTR-2B variance",
+      "source": "GST",
+      "severity": "High",
+      "description": "ITC in books that does not appear in GSTR-2B for the same period.",
+      "params": { "useMateriality": true }
+    },
+    {
+      "code": "VENDOR.DUPLICATE_INVOICE",
+      "name": "Duplicate vendor invoice number",
+      "source": "Tally",
+      "severity": "Medium",
+      "description": "Same vendor + invoice no + amount posted multiple times.",
+      "params": {}
+    },
+    {
+      "code": "PAYROLL.NEGATIVE_NET",
+      "name": "Negative net payroll amount",
+      "source": "Payroll",
+      "severity": "Medium",
+      "description": "Computed net pay below zero — usually data-entry error.",
+      "params": {}
+    },
+    {
+      "code": "TDS.SHORT_DEDUCTION",
+      "name": "TDS short deduction",
+      "source": "Tally",
+      "severity": "High",
+      "description": "Payment to vendor where applicable section rate × base > deducted TDS.",
+      "params": { "tolerance": 1 }
+    },
+    {
+      "code": "AR.AGED.90D",
+      "name": "Receivable aged over 90 days",
+      "source": "Tally",
+      "severity": "Low",
+      "description": "Customer balance open > 90 days from invoice date.",
+      "params": { "ageDays": 90 }
+    },
+    {
+      "code": "FA.DEPN_RECOMPUTE",
+      "name": "Depreciation variance vs recomputation",
+      "source": "Tally",
+      "severity": "Medium",
+      "description": "Book depreciation does not match Power Query recomputation.",
+      "params": { "tolerance": 100 }
+    },
+    {
+      "code": "S40A3.CASH_PAYMENT",
+      "name": "Cash payment over Section 40A(3) limit",
+      "source": "Tally",
+      "severity": "High",
+      "description": "Single-day cash payment to a party > INR 10,000 (35,000 transporters).",
+      "params": { "limitAmount": 10000, "transporterLimit": 35000 }
+    }
+  ]
+}

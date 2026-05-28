@@ -253,17 +253,19 @@
         <div class="ag-logo ss"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14-5-5 1.4-1.4L10 14.2l7.6-7.6L19 8l-9 9z"/></svg></div>
         <div>
           <strong>Audit Reviewer</strong>
-          <div class="muted">Smartsoft &middot; Copilot Studio (planned)</div>
+          <div class="muted">Smartsoft &middot; Copilot Studio</div>
         </div>
-        <span class="badge">Setup needed</span>
+        <span class="badge badge-ok">Active</span>
       </header>
-      <p>Walks an audit working-paper file, flags missing schedules, ties balances to TB, drafts a review memo for the partner.</p>
+      <p>Reads workpapers, samples and evidence; drafts conclusions (SA-700 wording), classifies exceptions vs materiality, and pre-writes the auditor's report. Never signs off &mdash; review stays human.</p>
       <ul class="ag-meta-list">
-        <li>License: <strong>Power Platform</strong></li>
-        <li>Best for: statutory audit prep &amp; partner review</li>
-        <li>Data scope: SharePoint working papers folder</li>
+        <li>License: <strong>audit.module + audit.ai</strong></li>
+        <li>Best for: statutory · GST 9C · 44AB · internal controls</li>
+        <li>Data scope: <code>adp_workpaper</code>, <code>adp_evidence</code>, <code>adp_sample</code>, <code>adp_exception</code></li>
+        <li>Topics: ReviewWorkpaper · ClassifyException · DraftReportSection</li>
       </ul>
       <div class="ag-actions">
+        <a class="btn btn-primary" href="/audit">Open in Audit</a>
         <button class="btn btn-default" type="button" data-act="configure" data-agent="audit-reviewer">Configure</button>
       </div>
     </article>

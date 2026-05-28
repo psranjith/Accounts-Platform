@@ -1,0 +1,159 @@
+{
+  "name": "Flow_GenerateAuditReport",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_GenerateAuditReport",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": { "auditEngagementId": { "type": "string" } },
+              "required": ["auditEngagementId"]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Get_Engagement": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "get",
+            "path": "/v2/datasets/default.cds/tables/adp_auditengagements/items/@{triggerBody()?['auditEngagementId']}"
+          }
+        },
+        "Get_Workpapers": {
+          "runAfter": { "Get_Engagement": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "get",
+            "path": "/v2/datasets/default.cds/tables/adp_workpapers/items",
+            "queries": { "$filter": "_adp_auditengagementid_value eq '@{triggerBody()?[''auditEngagementId'']}'" }
+          }
+        },
+        "Get_Exceptions": {
+          "runAfter": { "Get_Engagement": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "get",
+            "path": "/v2/datasets/default.cds/tables/adp_exceptions/items",
+            "queries": { "$filter": "_adp_auditengagementid_value eq '@{triggerBody()?[''auditEngagementId'']}'" }
+          }
+        },
+        "Populate_Word_Template": {
+          "runAfter": { "Get_Workpapers": ["Succeeded"], "Get_Exceptions": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_wordonlinebusiness" },
+            "method": "post",
+            "path": "/codeless/v1.0/templates/populate",
+            "body": {
+              "fileSource":  "Group",
+              "groupId":     "@parameters('adp_ReportGroupId')",
+              "templatePath":"/Audit/audit-report.docx",
+              "fields": {
+                "clientName":        "@body('Get_Engagement')?['_adp_companyid_value@OData.Community.Display.V1.FormattedValue']",
+                "programName":       "@body('Get_Engagement')?['adp_programname']",
+                "periodFrom":        "@body('Get_Engagement')?['adp_periodfrom']",
+                "periodTo":          "@body('Get_Engagement')?['adp_periodto']",
+                "materiality":       "@body('Get_Engagement')?['adp_materiality']",
+                "leadPartner":       "@body('Get_Engagement')?['adp_leadpartner']",
+                "workpapers":        "@body('Get_Workpapers')?['value']",
+                "exceptions":        "@body('Get_Exceptions')?['value']",
+                "issueDate":         "@utcNow('yyyy-MM-dd')"
+              }
+            }
+          }
+        },
+        "Upload_Word_To_SharePoint": {
+          "runAfter": { "Populate_Word_Template": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_sharepointonline" },
+            "method": "post",
+            "path": "/datasets/@{encodeURIComponent('https://intelliblend.sharepoint.com/sites/Smartsoft646')}/files",
+            "queries": {
+              "folderPath": "Audit/Reports/@{triggerBody()?['auditEngagementId']}",
+              "name":       "AuditReport-@{utcNow('yyyyMMddHHmmss')}.docx"
+            },
+            "body": "@body('Populate_Word_Template')"
+          }
+        },
+        "Convert_To_PDF": {
+          "runAfter": { "Upload_Word_To_SharePoint": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_sharepointonline" },
+            "method": "get",
+            "path": "/datasets/@{encodeURIComponent('https://intelliblend.sharepoint.com/sites/Smartsoft646')}/GetFileContentByPath",
+            "queries": {
+              "path":   "@body('Upload_Word_To_SharePoint')?['{Path}']",
+              "format": "pdf"
+            }
+          }
+        },
+        "Upload_PDF": {
+          "runAfter": { "Convert_To_PDF": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_sharepointonline" },
+            "method": "post",
+            "path": "/datasets/@{encodeURIComponent('https://intelliblend.sharepoint.com/sites/Smartsoft646')}/files",
+            "queries": {
+              "folderPath": "Audit/Reports/@{triggerBody()?['auditEngagementId']}",
+              "name":       "AuditReport-@{utcNow('yyyyMMddHHmmss')}.pdf"
+            },
+            "body": "@body('Convert_To_PDF')"
+          }
+        },
+        "Mark_Engagement_Issued": {
+          "runAfter": { "Upload_PDF": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "patch",
+            "path": "/v2/datasets/default.cds/tables/adp_auditengagements/items/@{triggerBody()?['auditEngagementId']}",
+            "body": { "adp_status": "Issued", "adp_reportpdfurl": "@body('Upload_PDF')?['{Link}']" }
+          }
+        },
+        "Write_Audit_Log": {
+          "runAfter": { "Mark_Engagement_Issued": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "post",
+            "path": "/v2/datasets/default.cds/tables/adp_auditlogs/items",
+            "body": {
+              "adp_action":     "Issue",
+              "adp_entityname": "adp_auditengagement",
+              "adp_recordid":   "@triggerBody()?['auditEngagementId']",
+              "adp_actor":      "@{workflow().run.name}",
+              "adp_summary":    "Final audit report generated and uploaded.",
+              "adp_timestamp":  "@utcNow()"
+            }
+          }
+        },
+        "Response": {
+          "runAfter": { "Write_Audit_Log": ["Succeeded"] },
+          "type": "Response",
+          "inputs": { "statusCode": 200, "body": { "pdfUrl": "@body('Upload_PDF')?['{Link}']" } }
+        }
+      }
+    },
+    "parameters": {
+      "adp_ReportGroupId": { "type": "string", "defaultValue": "" }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": { "connectionName": "shared-cds",     "source": "Embedded" },
+      "shared_sharepointonline":         { "connectionName": "shared-sp",      "source": "Embedded" },
+      "shared_wordonlinebusiness":       { "connectionName": "shared-word",    "source": "Embedded" }
+    }
+  }
+}

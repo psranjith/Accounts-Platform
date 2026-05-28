@@ -25,21 +25,29 @@
 {% endcomment %}
 
 {% assign role_norm = adp_role | downcase %}
-{% assign is_accountant = false %}
+{% assign is_operator   = false %}
 {% assign is_admin      = false %}
-{% if role_norm contains 'accountant' %}{% assign is_accountant = true %}{% endif %}
-{% if role_norm contains 'admin'      %}{% assign is_admin      = true %}{% endif %}
+{% assign is_accountant = false %}
+{% assign is_client     = false %}
+{% if adp_personagroup == 'operator'   %}{% assign is_operator   = true %}{% endif %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_admin      = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if adp_personagroup == 'client'     %}{% assign is_client     = true %}{% endif %}
 {% assign can_manage = false %}
-{% if is_accountant or is_admin %}{% assign can_manage = true %}{% endif %}
+{% if is_operator or is_accountant or is_admin %}{% assign can_manage = true %}{% endif %}
 
 <section class="service-delivery">
   <header class="sd-header">
     <h2>Service Delivery &amp; Process Platform</h2>
     <p class="sd-meta">
-      {% if is_accountant %}
+      {% if is_operator %}
+        Signed in as <strong>Smartsoft Operator</strong> &middot; cross-firm platform view
+      {% elsif is_accountant %}
         Signed in as <strong>Accountant</strong> &middot; portfolio across all clients
+      {% elsif is_admin %}
+        Company <strong>{{ adp_companyid | default: '(none)' }}</strong> &middot; Role <strong>Firm Admin</strong>
       {% else %}
-        Company <strong>{{ adp_companyid | default: '(none)' }}</strong> &middot; Role <strong>{{ adp_role | default: 'Client' }}</strong>
+        Company <strong>{{ adp_companyid | default: '(none)' }}</strong> &middot; Role <strong>Client</strong>
       {% endif %}
     </p>
   </header>
@@ -126,7 +134,7 @@
       <attribute name="adp_reminderdays" />
       <attribute name="adp_reminderon" />
       <attribute name="adp_status" />
-      {% unless is_accountant %}
+      {% unless is_accountant or is_operator %}
       <filter>
         <condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" />
       </filter>

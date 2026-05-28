@@ -52,6 +52,24 @@
       "entitlements": ["powerbi.embed", "powerquery.connectors", "powerautomate.flows", "ai.docintel"]
     },
     {
+      "id": "audit-suite",
+      "name": "Audit Suite",
+      "tagline": "End-to-end audit automation — workpapers, exception engine, AI reviewer, signed report.",
+      "monthly": 2499,
+      "annual": 24990,
+      "unit": "per company / month",
+      "features": [
+        "Statutory + GST + Internal Controls audit programs",
+        "Auto-generated workpaper checklist with risk + assertion mapping",
+        "Materiality + variance exception engine on Tally / bank / GST data",
+        "Statistical & judgmental sampling (random / systematic / MUS)",
+        "Multi-level reviewer sign-off with immutable audit trail",
+        "Copilot Audit Reviewer (Q&A over workpapers, draft observations)",
+        "One-click Word + PDF final audit report"
+      ],
+      "entitlements": ["audit.module", "audit.ai", "audit.report", "audit.exceptionengine"]
+    },
+    {
       "id": "all-in-one",
       "name": "All-in-One",
       "tagline": "Everything above, at the best value.",
@@ -63,6 +81,7 @@
         "Tally Hosting (up to 5 users included)",
         "M365 Integration (full)",
         "Power Suite (full)",
+        "Audit Suite (full)",
         "Priority 24x7 support",
         "Quarterly business review"
       ],
@@ -70,6 +89,7 @@
         "tally.hosting", "tally.rdp", "tally.backup",
         "m365.sharepoint", "m365.email", "m365.teams", "m365.sso",
         "powerbi.embed", "powerquery.connectors", "powerautomate.flows", "ai.docintel",
+        "audit.module", "audit.ai", "audit.report", "audit.exceptionengine",
         "support.priority"
       ]
     }

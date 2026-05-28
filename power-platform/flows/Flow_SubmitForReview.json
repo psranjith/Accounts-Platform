@@ -1,0 +1,118 @@
+{
+  "name": "Flow_SubmitForReview",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_SubmitForReview",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "workpaperId": { "type": "string" },
+                "reviewerUpn": { "type": "string" }
+              },
+              "required": ["workpaperId"]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Get_Workpaper": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "get",
+            "path": "/v2/datasets/default.cds/tables/adp_workpapers/items/@{triggerBody()?['workpaperId']}"
+          }
+        },
+        "Get_Evidence_Count": {
+          "runAfter": { "Get_Workpaper": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "get",
+            "path": "/v2/datasets/default.cds/tables/adp_evidences/items",
+            "queries": { "$filter": "_adp_workpaperid_value eq '@{triggerBody()?[''workpaperId'']}'", "$count": true }
+          }
+        },
+        "Validate_Required_Fields": {
+          "runAfter": { "Get_Evidence_Count": ["Succeeded"] },
+          "type": "If",
+          "expression": {
+            "and": [
+              { "greater":    [ "@body('Get_Evidence_Count')?['@odata.count']", 0 ] },
+              { "not":        { "equals": ["@body('Get_Workpaper')?['adp_conclusion']", null] } }
+            ]
+          },
+          "actions": {
+            "Update_Workpaper_Status": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                "method": "patch",
+                "path": "/v2/datasets/default.cds/tables/adp_workpapers/items/@{triggerBody()?['workpaperId']}",
+                "body": { "adp_status": "Ready for Review" }
+              }
+            },
+            "Notify_Reviewer": {
+              "runAfter": { "Update_Workpaper_Status": ["Succeeded"] },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": { "connectionReferenceName": "shared_office365" },
+                "method": "post",
+                "path": "/v2/Mail",
+                "body": {
+                  "To": "@triggerBody()?['reviewerUpn']",
+                  "Subject": "Workpaper ready for review: @{body('Get_Workpaper')?['adp_procedurecode']}",
+                  "Body":    "Workpaper @{body('Get_Workpaper')?['adp_procedurecode']} (@{body('Get_Workpaper')?['adp_procedurename']}) is ready for your review. Open: /workpaper?id=@{triggerBody()?['workpaperId']}"
+                }
+              }
+            },
+            "Write_Audit_Log": {
+              "runAfter": { "Notify_Reviewer": ["Succeeded"] },
+              "type": "ApiConnection",
+              "inputs": {
+                "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                "method": "post",
+                "path": "/v2/datasets/default.cds/tables/adp_auditlogs/items",
+                "body": {
+                  "adp_action":     "SubmitForReview",
+                  "adp_entityname": "adp_workpaper",
+                  "adp_recordid":   "@triggerBody()?['workpaperId']",
+                  "adp_actor":      "@{workflow().run.name}",
+                  "adp_summary":    "Submitted workpaper for review",
+                  "adp_timestamp":  "@utcNow()"
+                }
+              }
+            },
+            "Response_OK": {
+              "runAfter": { "Write_Audit_Log": ["Succeeded"] },
+              "type": "Response",
+              "inputs": { "statusCode": 200, "body": { "ok": true, "status": "Ready for Review" } }
+            }
+          },
+          "else": {
+            "actions": {
+              "Response_Validation_Failed": {
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 400,
+                  "body": { "ok": false, "error": "Validation failed: evidence and conclusion are required." }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": { "connectionName": "shared-cds",  "source": "Embedded" },
+      "shared_office365":                { "connectionName": "shared-o365","source": "Embedded" }
+    }
+  }
+}

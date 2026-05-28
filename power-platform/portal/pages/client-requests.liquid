@@ -1,0 +1,140 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'audit' %}
+{% assign eng_id = request.params.id | default: '' %}
+{% assign page_title = 'Client requests (PBC)' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Audit|/audit · Client requests' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Client request list (Prepared-by-Client) — the client uploads documents the
+  audit team needs. Re-uses the existing inbox ingestion channels (email / WA /
+  Telegram / SharePoint) — client just clicks "Upload" which deep-links to /inbox
+  with the request tag #REQ-xxxx prefilled.
+{% endcomment %}
+
+{% assign role_norm = adp_role | downcase %}
+{% assign is_client = false %}{% if adp_personagroup == 'client' %}{% assign is_client = true %}{% endif %}
+{% assign can_edit = false %}{% if adp_personagroup == 'operator' or adp_personagroup == 'firmadmin' %}{% assign can_edit = true %}{% endif %}
+
+{% fetchxml req_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+  <entity name="adp_clientrequest">
+    <attribute name="adp_clientrequestid" />
+    <attribute name="adp_auditengagementid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_item" />
+    <attribute name="adp_description" />
+    <attribute name="adp_duedate" />
+    <attribute name="adp_status" />
+    <attribute name="adp_assignee" />
+    <attribute name="adp_evidenceurl" />
+    <attribute name="adp_requesttag" />
+    {% if eng_id != '' %}<filter><condition attribute="adp_auditengagementid" operator="eq" value="{{ eng_id }}" /></filter>{% endif %}
+    {% if is_client %}<filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>{% endif %}
+    <order attribute="adp_duedate" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign reqs = req_query.results.entities %}
+
+{% assign open_n = 0 %}{% assign submitted_n = 0 %}{% assign accepted_n = 0 %}{% assign overdue_n = 0 %}
+{% for r in reqs %}
+  {% case r.adp_status.label %}
+    {% when 'Open' %}{% assign open_n = open_n | plus: 1 %}
+    {% when 'Submitted' %}{% assign submitted_n = submitted_n | plus: 1 %}
+    {% when 'Accepted' %}{% assign accepted_n = accepted_n | plus: 1 %}
+    {% when 'Overdue' %}{% assign overdue_n = overdue_n | plus: 1 %}
+  {% endcase %}
+{% endfor %}
+
+<section class="adp-pbc">
+  <header class="pbc-head">
+    <div>
+      <h2 style="margin:0">{% if is_client %}Documents we need from you{% else %}Client request list{% endif %}</h2>
+      <p class="muted" style="margin:.25rem 0 0">
+        {% if is_client %}Upload via the channel of your choice — email, WhatsApp, Telegram, SharePoint or here in the portal. Mention the tag <code>#REQ-xxxx</code> so we link your file to the right request.
+        {% else %}Track Prepared-by-Client deliverables across audit engagements.{% endif %}
+      </p>
+    </div>
+    {% if can_edit %}<button type="button" class="btn btn-primary" id="pbcNew">+ New request</button>{% endif %}
+  </header>
+
+  <div class="kpi-grid">
+    <div class="kpi"><span class="kpi-label">Open</span><strong>{{ open_n }}</strong></div>
+    <div class="kpi"><span class="kpi-label">Submitted (awaiting review)</span><strong>{{ submitted_n }}</strong></div>
+    <div class="kpi"><span class="kpi-label">Accepted</span><strong>{{ accepted_n }}</strong></div>
+    <div class="kpi {% if overdue_n > 0 %}kpi-warn{% endif %}"><span class="kpi-label">Overdue</span><strong>{{ overdue_n }}</strong></div>
+  </div>
+
+  {% if reqs.size == 0 %}
+    <div class="placeholder">No client requests yet.</div>
+  {% else %}
+  <ul class="pbc-list">
+    {% for r in reqs %}
+    <li class="pbc pbc-{{ r.adp_status.label | downcase }}">
+      <div class="pbc-main">
+        <div class="pbc-item"><strong>{{ r.adp_item }}</strong> <code class="pbc-tag">{{ r.adp_requesttag | default: 'REQ-0000' }}</code></div>
+        <div class="pbc-desc muted">{{ r.adp_description }}</div>
+        <div class="pbc-meta muted">
+          Due {{ r.adp_duedate }}
+          {% unless is_client %} · Client: {{ r.adp_companyid.name }}{% endunless %}
+          · Owner: {{ r.adp_assignee }}
+        </div>
+      </div>
+      <div class="pbc-status">
+        <span class="aa-status aa-status-{{ r.adp_status.label | downcase }}">{{ r.adp_status.label }}</span>
+        {% if is_client and r.adp_status.label != 'Accepted' %}
+          <a class="btn btn-primary btn-sm" href="/inbox?tag={{ r.adp_requesttag | default: 'REQ-0000' }}">Upload</a>
+        {% endif %}
+        {% if can_edit and r.adp_status.label == 'Submitted' %}
+          <button class="btn btn-link btn-sm" type="button" data-act="accept" data-id="{{ r.adp_clientrequestid }}">Accept</button>
+          <button class="btn btn-link btn-sm" type="button" data-act="reject" data-id="{{ r.adp_clientrequestid }}">Send back</button>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<style>
+  .adp-pbc { color:#0f172a; }
+  .adp-pbc .pbc-head { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .adp-pbc .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:14px; }
+  .adp-pbc .kpi { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:10px 12px; }
+  .adp-pbc .kpi .kpi-label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin-bottom:4px; }
+  .adp-pbc .kpi strong { font-size:22px; color:#00395E; }
+  .adp-pbc .kpi-warn { border-color:#fca5a5; background:#fef2f2; } .adp-pbc .kpi-warn strong { color:#991b1b; }
+  .adp-pbc .pbc-list { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .adp-pbc .pbc { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:12px 14px; background:#fff; border:1px solid #e1e6ec; border-radius:10px; }
+  .adp-pbc .pbc-overdue { border-color:#fca5a5; background:#fef2f2; }
+  .adp-pbc .pbc-submitted { border-color:#fde68a; background:#fffbeb; }
+  .adp-pbc .pbc-accepted { background:#f0fdf4; }
+  .adp-pbc .pbc-tag { font-size:11px; padding:1px 6px; background:#f1f5f9; color:#475569; border-radius:4px; margin-left:6px; }
+  .adp-pbc .pbc-desc { font-size:13px; margin-top:2px; }
+  .adp-pbc .pbc-meta { font-size:12px; margin-top:4px; }
+  .adp-pbc .pbc-status { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .adp-pbc .placeholder { padding:18px; text-align:center; color:#6b7280; background:#f7f9fc; border:1px dashed #cbd5e1; border-radius:6px; }
+  .aa-status { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; background:#f1f5f9; color:#334155; }
+  .aa-status-open { background:#dbeafe; color:#1e40af; } .aa-status-submitted { background:#fef9c3; color:#854d0e; } .aa-status-accepted { background:#dcfce7; color:#166534; } .aa-status-overdue { background:#fee2e2; color:#991b1b; }
+  .btn { padding:5px 9px; border-radius:6px; border:1px solid transparent; font-size:12px; cursor:pointer; font-weight:600; text-decoration:none; }
+  .btn-primary { background:#00395E; color:#fff; } .btn-link { background:transparent; color:#00395E; border:1px solid #e1e6ec; } .btn-sm { padding:4px 8px; }
+</style>
+
+<script>
+  (function () {
+    var nb = document.getElementById('pbcNew');
+    if (nb) nb.addEventListener('click', function () {
+      var item = prompt('Request item (e.g. "Bank confirmation - HDFC current a/c"):');
+      if (!item) return;
+      alert('Preview: Flow_StartAuditEngagement (or update) creates a new adp_clientrequest and emails the client. Tag generated as #REQ-' + Math.floor(Math.random()*9000+1000));
+    });
+    document.querySelectorAll('[data-act]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var act = b.dataset.act;
+        alert('Preview: ' + (act === 'accept' ? 'Accepted' : 'Sent back') + ' for request ' + b.dataset.id + ' (writes adp_auditlog).');
+      });
+    });
+  })();
+</script>
+
+{% include 'adp-shell-close' %}

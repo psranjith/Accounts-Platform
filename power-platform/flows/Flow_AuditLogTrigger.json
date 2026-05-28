@@ -1,0 +1,69 @@
+{
+  "name": "Flow_AuditLogTrigger",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_AuditLogTrigger",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "When_a_row_is_added_modified_or_deleted": {
+          "type": "ApiConnectionNotification",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "fetch": {
+              "method": "get",
+              "queries": {
+                "$select": "adp_auditengagementid,adp_workpaperid,adp_exceptionid,adp_clientrequestid,adp_reviewid"
+              },
+              "pathTemplate": { "template": "/v2/datasets/default.cds/tables/{table}/onnewormodifiedordelete" }
+            },
+            "subscribe": {
+              "body": {
+                "NotificationUrl": "@{listCallbackUrl()}",
+                "Scope": 4,
+                "filteringattributes": "adp_status,adp_decision,adp_severity,adp_amount"
+              },
+              "pathTemplate": { "template": "/v2/datasets/default.cds/tables/{table}/onnewormodifiedordeletewebhook" }
+            }
+          },
+          "parameters": {
+            "tablesToWatch": ["adp_auditengagement", "adp_workpaper", "adp_exception", "adp_clientrequest", "adp_review"]
+          }
+        }
+      },
+      "actions": {
+        "Determine_Action": {
+          "type": "Compose",
+          "inputs": {
+            "action": "@{triggerOutputs()?['headers']?['x-ms-change-type']}",
+            "entity": "@{triggerOutputs()?['headers']?['x-ms-entity-name']}",
+            "recordId": "@{triggerBody()?['id']}"
+          }
+        },
+        "Write_Audit_Log_Row": {
+          "runAfter": { "Determine_Action": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "post",
+            "path": "/v2/datasets/default.cds/tables/adp_auditlogs/items",
+            "body": {
+              "adp_action":       "@outputs('Determine_Action')?['action']",
+              "adp_entityname":   "@outputs('Determine_Action')?['entity']",
+              "adp_recordid":     "@outputs('Determine_Action')?['recordId']",
+              "adp_actor":        "@{triggerBody()?['modifiedby']?['fullname']}",
+              "adp_summary":      "Auto-logged row @{outputs('Determine_Action')?['action']} on @{outputs('Determine_Action')?['entity']}",
+              "adp_before_json":  "@string(triggerBody()?['SdkMessage_PreImage'])",
+              "adp_after_json":   "@string(triggerBody())",
+              "adp_iphash":       "@sha256(triggerBody()?['_remoteip'])",
+              "adp_timestamp":    "@utcNow()"
+            }
+          }
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": { "connectionName": "shared-cds", "source": "Embedded" }
+    }
+  }
+}

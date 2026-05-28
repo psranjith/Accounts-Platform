@@ -9,6 +9,11 @@ const PAGES = [
   { id: 'service-delivery', label: 'Service Delivery',           file: '../power-platform/portal/pages/service-delivery.liquid' },
   { id: 'insights',         label: 'Insights (Reports hub)',     file: '../power-platform/portal/pages/insights.liquid' },
   { id: 'agents',           label: 'Agents (incl. Smart Agent)', file: '../power-platform/portal/pages/agents.liquid' },
+  { id: 'audit',            label: 'Audit (hub)',                file: '../power-platform/portal/pages/audit.liquid' },
+  { id: 'audit-engagement', label: 'Audit engagement detail',    file: '../power-platform/portal/pages/audit-engagement.liquid' },
+  { id: 'workpaper',        label: 'Workpaper',                  file: '../power-platform/portal/pages/workpaper.liquid' },
+  { id: 'audit-exceptions', label: 'Audit exceptions inbox',     file: '../power-platform/portal/pages/audit-exceptions.liquid' },
+  { id: 'client-requests',  label: 'Client requests (PBC)',      file: '../power-platform/portal/pages/client-requests.liquid' },
   { id: 'billing',          label: 'Billing (Plans + Subscription)', file: '../power-platform/portal/pages/billing.liquid' },
   { id: 'operator',         label: 'Operator Console (Smartsoft)', file: '../power-platform/portal/pages/operator.liquid' },
   // ---- Secondary / utilities --------------------------------------------
@@ -59,7 +64,11 @@ engine.registerTag('fetchxml', {
     throw new Error('fetchxml tag not closed');
   },
   render: async function (ctx) {
-    const inner = this.tokens.map(t => t.getText()).join('');
+    const raw = this.tokens.map(t => t.getText()).join('');
+    // Render Liquid inside the FetchXML body so {% if %} / {{ var }} are resolved
+    // before stub matching (mirrors Power Pages behavior where FetchXML supports Liquid).
+    let inner = raw;
+    try { inner = await engine.parseAndRender(raw, ctx.getAll()); } catch (e) { /* fall back to raw */ }
     const stub = pickFetchXmlStub(this.varname, inner, ctx);
     ctx.environments[this.varname] = stub;
     return '';
@@ -180,7 +189,8 @@ function pickFetchXmlStub(varname, fetchXml, ctx) {
       { adp_engagementid: 'eng-007', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_processid: 'svc-tds',    adp_processname: 'TDS Return (Quarterly)',   adp_stage: { label: 'Delivered'   }, adp_status: { label: 'Complete' }, adp_ownername: 'Priya Sharma',  adp_startdate: '2026-04-15', adp_duedate: '2026-04-30', adp_progress: 100 },
       { adp_engagementid: 'eng-008', adp_companyid: { id: '00000000-0000-0000-0000-000000000002', name: 'Beta Industries'     }, adp_processid: 'svc-mis',    adp_processname: 'MIS Reporting (Monthly)',  adp_stage: { label: 'Review'      }, adp_status: { label: 'On Track' }, adp_ownername: 'Rahul Mehta',   adp_startdate: '2026-05-15', adp_duedate: '2026-05-28', adp_progress: 70 }
     ];
-    const filteredByCompany = /companyid/i.test(fetchXml) && role !== 'Accountant'
+    const isPortfolio = role === 'Accountant' || role === 'Smartsoft Operator';
+    const filteredByCompany = !isPortfolio
       ? all.filter(e => e.adp_companyid.id === '00000000-0000-0000-0000-000000000001')
       : all;
     return { results: { entities: filteredByCompany } };
@@ -193,7 +203,8 @@ function pickFetchXmlStub(varname, fetchXml, ctx) {
       { adp_onboardingid: 'onb-003', adp_companyid: { id: '00000000-0000-0000-0000-000000000009', name: 'Juno Auto Spares'    }, adp_contactemail: 'ops@junoauto.co.in', adp_plan: 'm365-integration', adp_startedon: '2026-05-20', adp_status: { label: 'Completed'   }, adp_overallprogress: 100 },
       { adp_onboardingid: 'onb-004', adp_companyid: { id: '00000000-0000-0000-0000-000000000010', name: 'Kshema Foods'        }, adp_contactemail: 'finance@kshema.in', adp_plan: 'all-in-one',     adp_startedon: '2026-05-25', adp_status: { label: 'Failed'      }, adp_overallprogress: 44 }
     ];
-    const filtered = /companyid/i.test(fetchXml) && role !== 'Accountant'
+    const isPortfolio2 = role === 'Accountant' || role === 'Smartsoft Operator';
+    const filtered = !isPortfolio2
       ? [ { ...all[0], adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_overallprogress: 88 } ]
       : all;
     return { results: { entities: filtered } };
@@ -313,6 +324,135 @@ function pickFetchXmlStub(varname, fetchXml, ctx) {
       { adp_companyassignmentid: 'ca-008', adp_companyid: { id: '00000000-0000-0000-0000-000000000003', name: 'Gamma Foods LLP'     }, adp_staffid: 'stf-priya' }
     ]}};
   }
+
+  // ---------- Audit module stubs ----------
+  // Helper: map a companyId to its engagement IDs (mirrors the engagement stub).
+  // Used by child stubs when the page scopes via <link-entity name="adp_auditengagement">
+  // ... <condition attribute="adp_companyid" .../></link-entity>.
+  const engagementsForCompany = (companyId) => ({
+    '00000000-0000-0000-0000-000000000001': ['aud-001'],
+    '00000000-0000-0000-0000-000000000002': ['aud-002'],
+    '00000000-0000-0000-0000-000000000003': ['aud-003'],
+    '00000000-0000-0000-0000-000000000004': ['aud-004']
+  }[companyId] || []);
+
+  if (/<entity\s+name="adp_auditengagement"/i.test(fetchXml)) {
+    const all = [
+      { adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_programcode: 'STAT-FY',  adp_programname: 'Statutory audit FY 2024-25', adp_framework: { label: 'Statutory' }, adp_periodfrom: '2024-04-01', adp_periodto: '2025-03-31', adp_materiality: 1500000, adp_performancemateriality: 75, adp_status: { label: 'Fieldwork' }, adp_leadpartner: 'CA Rohan Mehta',  adp_leadmanager: 'CA Priya Sharma', adp_progress: 62, adp_duedate: '2025-09-30', adp_riskareas: 'Revenue cut-off,Inventory valuation,Related-party transactions' },
+      { adp_auditengagementid: 'aud-002', adp_companyid: { id: '00000000-0000-0000-0000-000000000002', name: 'Beta Industries'      }, adp_programcode: 'GST-9C',   adp_programname: 'GST 9C reconciliation FY 2023-24', adp_framework: { label: 'GST' }, adp_periodfrom: '2023-04-01', adp_periodto: '2024-03-31', adp_materiality: 500000,  adp_performancemateriality: 60, adp_status: { label: 'Planning' }, adp_leadpartner: 'CA Rohan Mehta', adp_leadmanager: 'CA Aisha Khan',   adp_progress: 15, adp_duedate: '2024-12-31', adp_riskareas: 'ITC mismatch,3B vs 1 variance' },
+      { adp_auditengagementid: 'aud-003', adp_companyid: { id: '00000000-0000-0000-0000-000000000003', name: 'Gamma Foods LLP'      }, adp_programcode: 'ICR',      adp_programname: 'Internal controls review',         adp_framework: { label: 'Internal' }, adp_periodfrom: '2025-01-01', adp_periodto: '2025-06-30', adp_materiality: 800000,  adp_performancemateriality: 70, adp_status: { label: 'Review' },   adp_leadpartner: 'CA Vikram Rao',  adp_leadmanager: 'CA Meera Iyer',  adp_progress: 88, adp_duedate: '2025-07-31', adp_riskareas: 'Segregation of duties,Approvals,Master data' },
+      { adp_auditengagementid: 'aud-004', adp_companyid: { id: '00000000-0000-0000-0000-000000000004', name: 'Delta Logistics'      }, adp_programcode: 'TAX-44AB', adp_programname: 'Tax audit u/s 44AB FY 2024-25',    adp_framework: { label: 'Statutory' }, adp_periodfrom: '2024-04-01', adp_periodto: '2025-03-31', adp_materiality: 600000,  adp_performancemateriality: 65, adp_status: { label: 'Finalize' },  adp_leadpartner: 'CA Rohan Mehta', adp_leadmanager: 'CA Priya Sharma', adp_progress: 96, adp_duedate: '2025-10-31', adp_riskareas: 'TDS short deduction,Cash expenses' }
+    ];
+    const m = fetchXml.match(/adp_auditengagementid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (m) return { results: { entities: all.filter(e => e.adp_auditengagementid === m[1]) } };
+    const cm = fetchXml.match(/adp_companyid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (cm) return { results: { entities: all.filter(e => e.adp_companyid && e.adp_companyid.id === cm[1]) } };
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_workpaper"/i.test(fetchXml)) {
+    const all = [
+      { adp_workpaperid: 'wp-001', adp_auditengagementid: 'aud-001', adp_proceduresection: 'Revenue',       adp_procedurecode: 'REV-001', adp_procedurename: 'Sales cut-off — last 5 invoices',     adp_proceduredescription: 'Inspect last 5 sales invoices of FY and first 5 of next FY. Trace dispatch and GST 1 reporting period.', adp_assertion: { label: 'Cut-off' }, adp_risklevel: { label: 'High' },   adp_status: { label: 'Ready for Review' }, adp_preparer: 'Priya Sharma', adp_preparedon: '2025-06-12', adp_evidencecount: 5, adp_exceptionscount: 1, adp_samplesize: 10, adp_samplingmethod: { label: 'Judgmental' }, adp_populationsize: 1245, adp_conclusion: 'No cut-off errors noted. One late dispatch documented separately.' },
+      { adp_workpaperid: 'wp-002', adp_auditengagementid: 'aud-001', adp_proceduresection: 'Cash & Bank',   adp_procedurecode: 'CB-002',  adp_procedurename: 'Bank reconciliation review',           adp_proceduredescription: 'Agree BRS with bank confirmation; investigate unreconciled items > 30 days.', adp_assertion: { label: 'Existence' }, adp_risklevel: { label: 'Medium' }, adp_status: { label: 'In Progress' },     adp_preparer: 'Rahul Mehta',  adp_preparedon: '2025-06-10', adp_evidencecount: 3, adp_exceptionscount: 2, adp_samplesize: 12, adp_samplingmethod: { label: 'Systematic' }, adp_populationsize: 12, adp_conclusion: '' },
+      { adp_workpaperid: 'wp-003', adp_auditengagementid: 'aud-001', adp_proceduresection: 'Journal Entries', adp_procedurecode: 'JE-001', adp_procedurename: 'Manual JE analytics — weekend & round',  adp_proceduredescription: 'Run JE analytics over the year; investigate weekend and round-amount postings.', adp_assertion: { label: 'Occurrence' }, adp_risklevel: { label: 'High' },  adp_status: { label: 'Reviewed' },        adp_preparer: 'Priya Sharma', adp_preparedon: '2025-06-05', adp_evidencecount: 2, adp_exceptionscount: 4, adp_samplesize: 35, adp_samplingmethod: { label: 'MUS' },        adp_populationsize: 6814, adp_conclusion: 'Four exceptions flagged; all explained by management.' },
+      { adp_workpaperid: 'wp-004', adp_auditengagementid: 'aud-001', adp_proceduresection: 'Inventory',     adp_procedurecode: 'INV-001', adp_procedurename: 'Physical verification attendance',     adp_proceduredescription: 'Attend stock count, perform test counts and roll-forward.', adp_assertion: { label: 'Existence' }, adp_risklevel: { label: 'High' },  adp_status: { label: 'Open' },           adp_preparer: 'Aisha Khan',   adp_preparedon: '',           adp_evidencecount: 0, adp_exceptionscount: 0, adp_samplesize: 40, adp_samplingmethod: { label: 'Random' },     adp_populationsize: 612, adp_conclusion: '' },
+      { adp_workpaperid: 'wp-005', adp_auditengagementid: 'aud-002', adp_proceduresection: 'Reconciliation', adp_procedurecode: 'GST-001', adp_procedurename: 'Books vs GSTR-3B outward tax',         adp_proceduredescription: 'Reconcile books outward tax with 3B liability box.', adp_assertion: { label: 'Completeness' }, adp_risklevel: { label: 'High' }, adp_status: { label: 'In Progress' },     adp_preparer: 'Meera Iyer',   adp_preparedon: '2025-06-08', adp_evidencecount: 4, adp_exceptionscount: 3, adp_samplesize: 12, adp_samplingmethod: { label: 'Systematic' }, adp_populationsize: 12,  adp_conclusion: '' }
+    ];
+    const m = fetchXml.match(/adp_workpaperid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (m) return { results: { entities: all.filter(w => w.adp_workpaperid === m[1]) } };
+    const e = fetchXml.match(/adp_auditengagementid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (e) return { results: { entities: all.filter(w => w.adp_auditengagementid === e[1]) } };
+    const cm = fetchXml.match(/adp_companyid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (cm) { const ids = engagementsForCompany(cm[1]); return { results: { entities: all.filter(w => ids.includes(w.adp_auditengagementid)) } }; }
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_exception"/i.test(fetchXml)) {
+    const all = [
+      { adp_exceptionid: 'ex-001', adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_rulecode: 'JE.WEEKEND',         adp_rulename: 'Manual JE posted on weekend',   adp_source: { label: 'Tally' },  adp_severity: { label: 'High'   }, adp_amount:  450000, adp_status: { label: 'Investigating' }, adp_description: 'Voucher #JV-1024 posted on Sun 23-Mar-25',          adp_detectedon: '2025-06-11', adp_linkedworkpaperid: 'wp-003' },
+      { adp_exceptionid: 'ex-002', adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_rulecode: 'JE.ROUND_AMOUNT',    adp_rulename: 'Round-amount JE >= ₹1 lakh',    adp_source: { label: 'Tally' },  adp_severity: { label: 'Medium' }, adp_amount: 1000000, adp_status: { label: 'New' },           adp_description: 'Voucher #JV-0998 — ₹10,00,000 round',                adp_detectedon: '2025-06-11', adp_linkedworkpaperid: '' },
+      { adp_exceptionid: 'ex-003', adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_rulecode: 'BANK.UNRECONCILED.30D', adp_rulename: 'Unreconciled bank > 30d',     adp_source: { label: 'Bank' },   adp_severity: { label: 'High'   }, adp_amount:  238000, adp_status: { label: 'Investigating' }, adp_description: 'HDFC current — 4 entries unreconciled since 28-Feb', adp_detectedon: '2025-06-09', adp_linkedworkpaperid: 'wp-002' },
+      { adp_exceptionid: 'ex-004', adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_rulecode: 'S40A3.CASH_PAYMENT',    adp_rulename: 'Cash payment > ₹10k (s40A(3))',adp_source: { label: 'Tally' }, adp_severity: { label: 'Medium' }, adp_amount:   25000, adp_status: { label: 'Resolved' },     adp_description: 'Cash payment ₹25,000 to vendor — disallowed in tax',  adp_detectedon: '2025-06-07', adp_linkedworkpaperid: 'wp-003' },
+      { adp_exceptionid: 'ex-005', adp_auditengagementid: 'aud-002', adp_companyid: { id: '00000000-0000-0000-0000-000000000002', name: 'Beta Industries'      }, adp_rulecode: 'GST.BOOKS_VS_3B',    adp_rulename: 'Books vs 3B outward tax mismatch', adp_source: { label: 'GST' }, adp_severity: { label: 'High'   }, adp_amount:   87500, adp_status: { label: 'New' },          adp_description: 'Sep-24 variance ₹87,500 — books > 3B',                adp_detectedon: '2025-06-12', adp_linkedworkpaperid: 'wp-005' },
+      { adp_exceptionid: 'ex-006', adp_auditengagementid: 'aud-002', adp_companyid: { id: '00000000-0000-0000-0000-000000000002', name: 'Beta Industries'      }, adp_rulecode: 'GST.ITC_VS_2B',      adp_rulename: 'ITC books vs GSTR-2B mismatch', adp_source: { label: 'GST' },    adp_severity: { label: 'High'   }, adp_amount:  142000, adp_status: { label: 'Investigating' }, adp_description: 'Excess ITC claimed vs 2B for Q3',                    adp_detectedon: '2025-06-11', adp_linkedworkpaperid: '' },
+      { adp_exceptionid: 'ex-007', adp_auditengagementid: 'aud-003', adp_companyid: { id: '00000000-0000-0000-0000-000000000003', name: 'Gamma Foods LLP'      }, adp_rulecode: 'PAYROLL.NEGATIVE_NET', adp_rulename: 'Negative net pay',             adp_source: { label: 'Payroll' }, adp_severity: { label: 'Low'    }, adp_amount:   -1200, adp_status: { label: 'Accepted' },     adp_description: 'Negative net pay for EMP-117 due to advance recovery',adp_detectedon: '2025-06-04', adp_linkedworkpaperid: '' }
+    ];
+    const e = fetchXml.match(/adp_auditengagementid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (e) return { results: { entities: all.filter(x => x.adp_auditengagementid === e[1]) } };
+    const cm = fetchXml.match(/adp_companyid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (cm) { const ids = engagementsForCompany(cm[1]); return { results: { entities: all.filter(x => ids.includes(x.adp_auditengagementid)) } }; }
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_evidence"/i.test(fetchXml)) {
+    const all = [
+      { adp_evidenceid: 'ev-001', adp_workpaperid: 'wp-001', adp_filename: 'Invoice-INV-2245.pdf', adp_fileurl: '#', adp_sourcechannel: { label: 'Email' },    adp_uploadedby: 'client@acme.in',  adp_uploadedon: '2025-06-11', adp_hashsha256: 'a91b2c4d8e' },
+      { adp_evidenceid: 'ev-002', adp_workpaperid: 'wp-001', adp_filename: 'Invoice-INV-2246.pdf', adp_fileurl: '#', adp_sourcechannel: { label: 'SharePoint' }, adp_uploadedby: 'Priya Sharma',    adp_uploadedon: '2025-06-11', adp_hashsha256: 'b22a55ec33' },
+      { adp_evidenceid: 'ev-003', adp_workpaperid: 'wp-002', adp_filename: 'HDFC-BRS-Mar25.xlsx',  adp_fileurl: '#', adp_sourcechannel: { label: 'Tally' },    adp_uploadedby: 'Rahul Mehta',     adp_uploadedon: '2025-06-10', adp_hashsha256: 'cc8841aafb' },
+      { adp_evidenceid: 'ev-004', adp_workpaperid: 'wp-003', adp_filename: 'JE-analytics.csv',     adp_fileurl: '#', adp_sourcechannel: { label: 'Tally' },    adp_uploadedby: 'Priya Sharma',    adp_uploadedon: '2025-06-05', adp_hashsha256: 'd1e2f3a4b5' }
+    ];
+    const w = fetchXml.match(/adp_workpaperid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (w) return { results: { entities: all.filter(e => e.adp_workpaperid === w[1]) } };
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_sample"/i.test(fetchXml)) {
+    const all = [
+      { adp_sampleid: 'sm-001', adp_workpaperid: 'wp-001', adp_itemref: 'INV-2245', adp_itemdescription: 'Sale to BlueLink Pvt Ltd', adp_amount: 240000, adp_testresult: { label: 'Pass' }, adp_notes: '' },
+      { adp_sampleid: 'sm-002', adp_workpaperid: 'wp-001', adp_itemref: 'INV-2246', adp_itemdescription: 'Sale to Orion Retail',     adp_amount: 185000, adp_testresult: { label: 'Pass' }, adp_notes: '' },
+      { adp_sampleid: 'sm-003', adp_workpaperid: 'wp-001', adp_itemref: 'INV-2247', adp_itemdescription: 'Sale to CrestEdge',        adp_amount: 305000, adp_testresult: { label: 'Fail' }, adp_notes: 'Dispatched 2-Apr but invoiced 30-Mar' }
+    ];
+    const w = fetchXml.match(/adp_workpaperid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (w) return { results: { entities: all.filter(s => s.adp_workpaperid === w[1]) } };
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_review"/i.test(fetchXml)) {
+    const all = [
+      { adp_reviewid: 'rv-001', adp_workpaperid: 'wp-003', adp_level: { label: 'Manager' }, adp_reviewer: 'CA Priya Sharma', adp_decision: { label: 'Approve' }, adp_comments: 'Exceptions explained adequately by management.', adp_signedon: '2025-06-06' },
+      { adp_reviewid: 'rv-002', adp_workpaperid: 'wp-003', adp_level: { label: 'Partner' }, adp_reviewer: 'CA Rohan Mehta',  adp_decision: { label: 'Approve' }, adp_comments: 'OK to proceed.', adp_signedon: '2025-06-07' }
+    ];
+    const w = fetchXml.match(/adp_workpaperid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (w) return { results: { entities: all.filter(r => r.adp_workpaperid === w[1]) } };
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_clientrequest"/i.test(fetchXml)) {
+    const all = [
+      { adp_clientrequestid: 'cr-001', adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_item: 'Bank confirmation — HDFC current account', adp_description: 'Signed bank confirmation as at 31-Mar-2025.', adp_duedate: '2025-06-20', adp_status: { label: 'Open' },      adp_assignee: 'client@acme.in', adp_evidenceurl: '', adp_requesttag: 'REQ-1024' },
+      { adp_clientrequestid: 'cr-002', adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_item: 'Inventory count sheets',                    adp_description: 'Signed PV sheets and reconciliation with books.', adp_duedate: '2025-06-15', adp_status: { label: 'Submitted' }, adp_assignee: 'client@acme.in', adp_evidenceurl: '#', adp_requesttag: 'REQ-1025' },
+      { adp_clientrequestid: 'cr-003', adp_auditengagementid: 'aud-001', adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' }, adp_item: 'Related-party transactions schedule',       adp_description: 'List of RPTs with nature, amount and approval reference.', adp_duedate: '2025-06-10', adp_status: { label: 'Overdue' },  adp_assignee: 'cfo@acme.in',    adp_evidenceurl: '', adp_requesttag: 'REQ-1026' },
+      { adp_clientrequestid: 'cr-004', adp_auditengagementid: 'aud-002', adp_companyid: { id: '00000000-0000-0000-0000-000000000002', name: 'Beta Industries'      }, adp_item: 'GSTR-2B downloads (Apr-Mar)',              adp_description: 'All 12 months of 2B JSON downloads.', adp_duedate: '2025-06-25', adp_status: { label: 'Open' },      adp_assignee: 'gst@beta.in',    adp_evidenceurl: '', adp_requesttag: 'REQ-1027' },
+      { adp_clientrequestid: 'cr-005', adp_auditengagementid: 'aud-003', adp_companyid: { id: '00000000-0000-0000-0000-000000000003', name: 'Gamma Foods LLP'      }, adp_item: 'IT GL access list',                        adp_description: 'Current IT GL access list to validate SoD.', adp_duedate: '2025-06-12', adp_status: { label: 'Accepted' }, adp_assignee: 'it@gamma.in',    adp_evidenceurl: '#', adp_requesttag: 'REQ-1028' }
+    ];
+    const e = fetchXml.match(/adp_auditengagementid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (e && e[1] !== '') return { results: { entities: all.filter(x => x.adp_auditengagementid === e[1]) } };
+    const cm = fetchXml.match(/adp_companyid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (cm) { const ids = engagementsForCompany(cm[1]); return { results: { entities: all.filter(x => ids.includes(x.adp_auditengagementid)) } }; }
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_auditlog"/i.test(fetchXml)) {
+    const all = [
+      { adp_auditlogid: 'log-001', adp_auditengagementid: 'aud-001', adp_action: { label: 'Create' },        adp_entityname: 'adp_auditengagement', adp_actor: 'CA Rohan Mehta',  adp_timestamp: '2025-05-15 10:14', adp_summary: 'Engagement started; 22 workpapers seeded.' },
+      { adp_auditlogid: 'log-002', adp_auditengagementid: 'aud-001', adp_action: { label: 'SubmitForReview' }, adp_entityname: 'adp_workpaper',     adp_actor: 'Priya Sharma',    adp_timestamp: '2025-06-12 09:02', adp_summary: 'WP-001 submitted for review.' },
+      { adp_auditlogid: 'log-003', adp_auditengagementid: 'aud-001', adp_action: { label: 'SignOff' },        adp_entityname: 'adp_workpaper',     adp_actor: 'CA Priya Sharma', adp_timestamp: '2025-06-06 17:40', adp_summary: 'Manager Approve on WP-003.' },
+      { adp_auditlogid: 'log-004', adp_auditengagementid: 'aud-001', adp_action: { label: 'SignOff' },        adp_entityname: 'adp_workpaper',     adp_actor: 'CA Rohan Mehta',  adp_timestamp: '2025-06-07 11:11', adp_summary: 'Partner Approve on WP-003.' }
+    ];
+    const e = fetchXml.match(/adp_auditengagementid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (e) return { results: { entities: all.filter(x => x.adp_auditengagementid === e[1]) } };
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_auditprogram"/i.test(fetchXml)) {
+    return { results: { entities: [
+      { adp_auditprogramid: 'STAT-FY',  adp_code: 'STAT-FY',  adp_name: 'Statutory audit (full FY)',     adp_framework: { label: 'Statutory' }, adp_proceduresCount: 22, adp_defaultmaterialitypct: 1.5 },
+      { adp_auditprogramid: 'GST-9C',   adp_code: 'GST-9C',   adp_name: 'GST 9C reconciliation',         adp_framework: { label: 'GST' },       adp_proceduresCount: 9,  adp_defaultmaterialitypct: 0.5 },
+      { adp_auditprogramid: 'ICR',      adp_code: 'ICR',      adp_name: 'Internal controls review',       adp_framework: { label: 'Internal' },  adp_proceduresCount: 11, adp_defaultmaterialitypct: 2.0 },
+      { adp_auditprogramid: 'TAX-44AB', adp_code: 'TAX-44AB', adp_name: 'Income-tax audit 44AB',          adp_framework: { label: 'Statutory' }, adp_proceduresCount: 8,  adp_defaultmaterialitypct: 1.0 }
+    ]}};
+  }
+
   return { results: { entities: [] } };
 }
 
@@ -449,7 +589,12 @@ const PATH_TO_PAGE = {
   '/service-delivery': 'service-delivery',
   '/onboarding': 'clients',
   '/settings': 'operator',
-  '/teams': 'teams'
+  '/teams': 'teams',
+  '/audit': 'audit',
+  '/audit-engagement': 'audit-engagement',
+  '/workpaper': 'workpaper',
+  '/audit-exceptions': 'audit-exceptions',
+  '/client-requests': 'client-requests'
 };
 
 // Preview-only: route t.me iframes through our local proxy so X-Frame-Options
@@ -469,10 +614,13 @@ function rewriteInternalLinks() {
   target.querySelectorAll('a[href]').forEach(a => {
     const href = a.getAttribute('href');
     if (!href || /^https?:|^mailto:|^#/i.test(href)) return;
-    // Split path and query so /reports/company?id=xxx maps to page 'reports-company' with id preserved.
-    const qIdx = href.indexOf('?');
-    const path = qIdx === -1 ? href : href.slice(0, qIdx);
-    const queryString = qIdx === -1 ? '' : href.slice(qIdx + 1);
+    // Split path, query and hash so /billing#active and /reports/company?id=xxx both resolve.
+    const hIdx = href.indexOf('#');
+    const beforeHash = hIdx === -1 ? href : href.slice(0, hIdx);
+    const hashFragment = hIdx === -1 ? '' : href.slice(hIdx);
+    const qIdx = beforeHash.indexOf('?');
+    const path = qIdx === -1 ? beforeHash : beforeHash.slice(0, qIdx);
+    const queryString = qIdx === -1 ? '' : beforeHash.slice(qIdx + 1);
     const pageId = PATH_TO_PAGE[path];
     if (!pageId) return;
     a.addEventListener('click', e => {
@@ -485,6 +633,7 @@ function rewriteInternalLinks() {
         new URLSearchParams(queryString).forEach((v, k) => url.searchParams.set(k, v));
       }
       url.searchParams.set('page', pageId);
+      url.hash = hashFragment || '';
       history.replaceState(null, '', url);
       sel.value = pageId;
       renderPage(pageId);

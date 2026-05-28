@@ -1,0 +1,133 @@
+{
+  "name": "Flow_RunExceptionEngine",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_RunExceptionEngine",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "Recurrence": {
+          "type": "Recurrence",
+          "recurrence": { "frequency": "Day", "interval": 1, "schedule": { "hours": ["3"] } }
+        },
+        "manual": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "auditEngagementId": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "actions": {
+        "Get_Active_Engagements": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "get",
+            "path": "/v2/datasets/default.cds/tables/adp_auditengagements/items",
+            "queries": { "$filter": "adp_status ne 'Issued' and adp_status ne 'Cancelled'" }
+          }
+        },
+        "Get_Exception_Rules": {
+          "runAfter": { "Get_Active_Engagements": ["Succeeded"] },
+          "type": "Http",
+          "inputs": {
+            "method": "GET",
+            "uri": "@{parameters('adp_CatalogBaseUrl')}/catalog/exception-rules.json"
+          }
+        },
+        "For_Each_Engagement": {
+          "runAfter": { "Get_Exception_Rules": ["Succeeded"] },
+          "type": "Foreach",
+          "foreach": "@body('Get_Active_Engagements')?['value']",
+          "actions": {
+            "Refresh_Power_Query_Dataset": {
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "https://api.powerbi.com/v1.0/myorg/datasets/@{parameters('adp_AuditExceptionsDatasetId')}/refreshes",
+                "headers": { "Authorization": "Bearer @{parameters('adp_PowerBIServiceToken')}" }
+              }
+            },
+            "Get_Exception_Rows": {
+              "runAfter": { "Refresh_Power_Query_Dataset": ["Succeeded"] },
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "https://api.powerbi.com/v1.0/myorg/datasets/@{parameters('adp_AuditExceptionsDatasetId')}/executeQueries",
+                "headers": { "Authorization": "Bearer @{parameters('adp_PowerBIServiceToken')}" },
+                "body": {
+                  "queries": [{ "query": "EVALUATE FILTER('Exceptions', 'Exceptions'[CompanyId] = \"@{items('For_Each_Engagement')?['_adp_companyid_value']}\")" }]
+                }
+              }
+            },
+            "For_Each_Row": {
+              "runAfter": { "Get_Exception_Rows": ["Succeeded"] },
+              "type": "Foreach",
+              "foreach": "@body('Get_Exception_Rows')?['results'][0]?['tables'][0]?['rows']",
+              "actions": {
+                "Upsert_Exception": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                    "method": "post",
+                    "path": "/v2/datasets/default.cds/tables/adp_exceptions/items",
+                    "body": {
+                      "adp_auditengagementid@odata.bind": "/adp_auditengagements(@{items('For_Each_Engagement')?['adp_auditengagementid']})",
+                      "adp_companyid@odata.bind":         "/adp_companies(@{items('For_Each_Engagement')?['_adp_companyid_value']})",
+                      "adp_rulecode":     "@items('For_Each_Row')?['[Exceptions[RuleCode]]']",
+                      "adp_rulename":     "@items('For_Each_Row')?['[Exceptions[RuleName]]']",
+                      "adp_source":       "@items('For_Each_Row')?['[Exceptions[Source]]']",
+                      "adp_severity":     "@items('For_Each_Row')?['[Exceptions[Severity]]']",
+                      "adp_amount":       "@items('For_Each_Row')?['[Exceptions[Amount]]']",
+                      "adp_description":  "@items('For_Each_Row')?['[Exceptions[Description]]']",
+                      "adp_status":       "New",
+                      "adp_detectedon":   "@utcNow()"
+                    }
+                  }
+                }
+              }
+            },
+            "If_High_Severity_Found": {
+              "runAfter": { "For_Each_Row": ["Succeeded"] },
+              "type": "If",
+              "expression": { "and": [ { "greater": [ "@length(filter(body('Get_Exception_Rows')?['results'][0]?['tables'][0]?['rows'], item()?['[Exceptions[Severity]]'] = 'High'))", 0 ] } ] },
+              "actions": {
+                "Post_Teams_Card": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connectionReferenceName": "shared_teams" },
+                    "method": "post",
+                    "path": "/v3/teams/channel/messages",
+                    "body": {
+                      "messageBody": "High-severity audit exceptions detected for @{items('For_Each_Engagement')?['adp_programcode']} (@{items('For_Each_Engagement')?['_adp_companyid_value']}). Open the engagement at /audit-engagement?id=@{items('For_Each_Engagement')?['adp_auditengagementid']}"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "Response": {
+          "runAfter": { "For_Each_Engagement": ["Succeeded"] },
+          "type": "Response",
+          "inputs": { "statusCode": 200, "body": { "engagementsProcessed": "@length(body('Get_Active_Engagements')?['value'])" } }
+        }
+      }
+    },
+    "parameters": {
+      "adp_CatalogBaseUrl":            { "type": "string", "defaultValue": "https://intelliblend.sharepoint.com/sites/Smartsoft646/catalog" },
+      "adp_AuditExceptionsDatasetId":  { "type": "string", "defaultValue": "" },
+      "adp_PowerBIServiceToken":       { "type": "securestring", "defaultValue": "" }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": { "connectionName": "shared-cds",   "source": "Embedded" },
+      "shared_teams":                    { "connectionName": "shared-teams", "source": "Embedded" }
+    }
+  }
+}

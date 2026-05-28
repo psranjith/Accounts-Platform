@@ -1,0 +1,167 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'audit' %}
+{% assign page_title = 'Audit exceptions' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Audit|/audit · Exceptions' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Audit Exceptions Inbox
+  ----------------------
+  Cross-engagement view of all open exceptions flagged by the rules engine
+  (Flow_RunExceptionEngine + audit-exceptions.pq). Accountants can assign an
+  exception to a workpaper or mark Resolved / Accepted.
+{% endcomment %}
+
+{% assign role_norm = adp_role | downcase %}
+{% assign is_client = false %}
+{% if adp_personagroup == 'client' %}{% assign is_client = true %}{% endif %}
+{% assign can_edit = false %}
+{% if adp_personagroup == 'operator' or adp_personagroup == 'firmadmin' or adp_personagroup == 'accountant' %}{% assign can_edit = true %}{% endif %}
+
+{% if is_client %}
+  <div class="placeholder">The exceptions inbox is an internal audit tool and isn't shown to clients. Open <a href="/audit">your audit</a> to see PBC requests and engagement status.</div>
+{% else %}
+
+{% fetchxml exc_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="500">
+  <entity name="adp_exception">
+    <attribute name="adp_exceptionid" />
+    <attribute name="adp_auditengagementid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_rulecode" />
+    <attribute name="adp_rulename" />
+    <attribute name="adp_source" />
+    <attribute name="adp_severity" />
+    <attribute name="adp_amount" />
+    <attribute name="adp_status" />
+    <attribute name="adp_description" />
+    <attribute name="adp_detectedon" />
+    <attribute name="adp_linkedworkpaperid" />
+    <order attribute="adp_severity" descending="true" />
+    <order attribute="adp_detectedon" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign exc = exc_query.results.entities %}
+
+{% assign high = 0 %}{% assign med = 0 %}{% assign low = 0 %}{% assign open = 0 %}
+{% for e in exc %}
+  {% if e.adp_severity.label == 'High' %}{% assign high = high | plus: 1 %}{% endif %}
+  {% if e.adp_severity.label == 'Medium' %}{% assign med = med | plus: 1 %}{% endif %}
+  {% if e.adp_severity.label == 'Low' %}{% assign low = low | plus: 1 %}{% endif %}
+  {% if e.adp_status.label == 'New' or e.adp_status.label == 'Investigating' %}{% assign open = open | plus: 1 %}{% endif %}
+{% endfor %}
+
+<section class="adp-exceptions">
+  <div class="kpi-grid">
+    <div class="kpi"><span class="kpi-label">Total exceptions</span><strong>{{ exc.size }}</strong></div>
+    <div class="kpi {% if high > 0 %}kpi-warn{% endif %}"><span class="kpi-label">High severity</span><strong>{{ high }}</strong></div>
+    <div class="kpi"><span class="kpi-label">Medium severity</span><strong>{{ med }}</strong></div>
+    <div class="kpi"><span class="kpi-label">Low severity</span><strong>{{ low }}</strong></div>
+    <div class="kpi"><span class="kpi-label">Open (unresolved)</span><strong>{{ open }}</strong></div>
+  </div>
+
+  <div class="aa-toolbar">
+    <input type="search" id="exFilter" placeholder="Filter rule, company, description..." />
+    <select id="exSeverity"><option value="">All severities</option><option>High</option><option>Medium</option><option>Low</option></select>
+    <select id="exSource"><option value="">All sources</option><option>Tally</option><option>Bank</option><option>GST</option><option>Payroll</option></select>
+    <select id="exStatus"><option value="">All statuses</option><option>New</option><option>Investigating</option><option>Resolved</option><option>Accepted</option></select>
+  </div>
+
+  <table class="aa-table">
+    <thead>
+      <tr>
+        <th>Severity</th><th>Rule</th><th>Company</th><th>Engagement</th>
+        <th>Source</th><th>Amount</th><th>Description</th><th>Detected</th>
+        <th>Status</th>{% if can_edit %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in exc %}
+      <tr data-severity="{{ e.adp_severity.label }}" data-source="{{ e.adp_source.label }}" data-status="{{ e.adp_status.label }}">
+        <td><span class="aa-risk aa-risk-{{ e.adp_severity.label | downcase }}">{{ e.adp_severity.label }}</span></td>
+        <td><code>{{ e.adp_rulecode }}</code><br/>{{ e.adp_rulename }}</td>
+        <td>{{ e.adp_companyid.name }}</td>
+        <td><a href="/audit-engagement?id={{ e.adp_auditengagementid }}">{{ e.adp_auditengagementid }}</a></td>
+        <td>{{ e.adp_source.label }}</td>
+        <td data-rupee>{{ e.adp_amount }}</td>
+        <td>{{ e.adp_description }}</td>
+        <td>{{ e.adp_detectedon }}</td>
+        <td><span class="aa-status aa-status-{{ e.adp_status.label | downcase }}">{{ e.adp_status.label }}</span></td>
+        {% if can_edit %}
+        <td class="actions">
+          {% if e.adp_linkedworkpaperid %}
+            <a class="btn btn-link" href="/workpaper?id={{ e.adp_linkedworkpaperid }}">Open WP</a>
+          {% else %}
+            <button class="btn btn-link" type="button" data-act="link" data-id="{{ e.adp_exceptionid }}">Link to WP</button>
+          {% endif %}
+          <button class="btn btn-link" type="button" data-act="resolve" data-id="{{ e.adp_exceptionid }}">Resolve</button>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<style>
+  .adp-exceptions .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:14px; }
+  .adp-exceptions .kpi { background:#fff; border:1px solid #e1e6ec; border-radius:8px; padding:10px 12px; }
+  .adp-exceptions .kpi .kpi-label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin-bottom:4px; }
+  .adp-exceptions .kpi strong { font-size:22px; color:#00395E; }
+  .adp-exceptions .kpi-warn { border-color:#fca5a5; background:#fef2f2; }
+  .adp-exceptions .kpi-warn strong { color:#991b1b; }
+  .adp-exceptions .aa-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .adp-exceptions .aa-toolbar input, .adp-exceptions .aa-toolbar select { padding:5px 9px; border:1px solid #e1e6ec; border-radius:6px; font-size:13px; }
+  .adp-exceptions .aa-table { width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid #e1e6ec; border-radius:10px; overflow:hidden; }
+  .adp-exceptions .aa-table th, .adp-exceptions .aa-table td { padding:8px 10px; text-align:left; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+  .adp-exceptions .aa-table th { background:#f7f9fc; font-weight:600; color:#475569; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .aa-risk { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+  .aa-risk-high { background:#fee2e2; color:#991b1b; } .aa-risk-medium { background:#fef9c3; color:#854d0e; } .aa-risk-low { background:#dcfce7; color:#166534; }
+  .aa-status { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; background:#f1f5f9; color:#334155; }
+  .aa-status-new { background:#dbeafe; color:#1e40af; } .aa-status-investigating { background:#fef9c3; color:#854d0e; } .aa-status-resolved { background:#dcfce7; color:#166534; } .aa-status-accepted { background:#e2e8f0; color:#475569; }
+  .btn { padding:5px 8px; border-radius:6px; border:1px solid transparent; font-size:12px; cursor:pointer; font-weight:600; text-decoration:none; }
+  .btn-link { background:transparent; color:#00395E; border:1px solid #e1e6ec; }
+</style>
+
+<script>
+  (function () {
+    function applyFilters() {
+      var q = (document.getElementById('exFilter').value || '').toLowerCase();
+      var sev = document.getElementById('exSeverity').value;
+      var src = document.getElementById('exSource').value;
+      var st  = document.getElementById('exStatus').value;
+      document.querySelectorAll('.adp-exceptions tbody tr').forEach(function (r) {
+        var keep = true;
+        if (q && !r.textContent.toLowerCase().includes(q)) keep = false;
+        if (sev && r.dataset.severity !== sev) keep = false;
+        if (src && r.dataset.source !== src) keep = false;
+        if (st  && r.dataset.status !== st) keep = false;
+        r.style.display = keep ? '' : 'none';
+      });
+    }
+    ['exFilter','exSeverity','exSource','exStatus'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', applyFilters);
+      if (el) el.addEventListener('change', applyFilters);
+    });
+    document.querySelectorAll('[data-act]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var act = b.dataset.act;
+        if (act === 'link') {
+          var wp = prompt('Workpaper id to link:'); if (!wp) return;
+          alert('Preview: exception ' + b.dataset.id + ' linked to ' + wp + ' (writes adp_auditlog).');
+        } else if (act === 'resolve') {
+          var note = prompt('Resolution note?'); if (!note) return;
+          alert('Preview: exception ' + b.dataset.id + ' marked Resolved (writes adp_auditlog).');
+        }
+      });
+    });
+    document.querySelectorAll('.adp-exceptions [data-rupee]').forEach(function (el) {
+      var n = parseFloat((el.textContent || '').replace(/[^0-9.-]/g, ''));
+      if (!isNaN(n)) el.textContent = '₹' + n.toLocaleString('en-IN');
+    });
+  })();
+</script>
+
+{% endif %}
+{% include 'adp-shell-close' %}

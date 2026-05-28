@@ -185,3 +185,168 @@
   adx_write: true
   adx_delete: true
   adx_webroles: [ADP Admin]
+
+# ===== Audit module (statutory + GST + internal) =====================
+
+- adx_entityname: adp_auditengagement
+  adx_entitylogicalname: adp_auditengagement
+  adx_name: ADP Admin - Audit Engagements (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_auditengagement
+  adx_entitylogicalname: adp_auditengagement
+  adx_name: ADP Accountant - Audit Engagements (Parent Company)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Assigned Companies
+  adx_parentrelationship: adp_company_adp_auditengagement
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: false
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_auditengagement
+  adx_entitylogicalname: adp_auditengagement
+  adx_name: ADP Client - Audit Engagements (Own Company, Read)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Client - Own Company (Read)
+  adx_parentrelationship: adp_company_adp_auditengagement
+  adx_read: true
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_workpaper
+  adx_entitylogicalname: adp_workpaper
+  adx_name: ADP Admin - Workpapers (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_workpaper
+  adx_entitylogicalname: adp_workpaper
+  adx_name: ADP Accountant - Workpapers (Parent)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Audit Engagements (Parent Company)
+  adx_parentrelationship: adp_auditengagement_adp_workpaper
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_evidence
+  adx_entitylogicalname: adp_evidence
+  adx_name: ADP Accountant - Evidence (Parent)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Workpapers (Parent)
+  adx_parentrelationship: adp_workpaper_adp_evidence
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_sample
+  adx_entitylogicalname: adp_sample
+  adx_name: ADP Accountant - Sampling (Parent)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Workpapers (Parent)
+  adx_parentrelationship: adp_workpaper_adp_sample
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_exception
+  adx_entitylogicalname: adp_exception
+  adx_name: ADP Accountant - Exceptions (Parent)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Audit Engagements (Parent Company)
+  adx_parentrelationship: adp_auditengagement_adp_exception
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_exception
+  adx_entitylogicalname: adp_exception
+  adx_name: ADP Client - Exceptions (Own Company, Read)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Client - Audit Engagements (Own Company, Read)
+  adx_parentrelationship: adp_auditengagement_adp_exception
+  adx_read: true
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_review
+  adx_entitylogicalname: adp_review
+  adx_name: ADP Accountant - Reviews (Preparer)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Workpapers (Parent)
+  adx_parentrelationship: adp_workpaper_adp_review
+  adx_create: true
+  adx_read: true
+  adx_write: false
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_review
+  adx_entitylogicalname: adp_review
+  adx_name: ADP Admin - Reviews (Reviewer/Partner Sign-off)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Admin]
+
+- adx_entityname: adp_clientrequest
+  adx_entitylogicalname: adp_clientrequest
+  adx_name: ADP Accountant - Client Requests (Parent)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Audit Engagements (Parent Company)
+  adx_parentrelationship: adp_auditengagement_adp_clientrequest
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_clientrequest
+  adx_entitylogicalname: adp_clientrequest
+  adx_name: ADP Client - Client Requests (Own Company)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Client - Audit Engagements (Own Company, Read)
+  adx_parentrelationship: adp_auditengagement_adp_clientrequest
+  adx_create: false
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Client User]
+
+- adx_entityname: adp_auditprogram
+  adx_entitylogicalname: adp_auditprogram
+  adx_name: ADP - Audit Program Catalog (Global Read)
+  adx_scope: Global
+  adx_read: true
+  adx_webroles: [ADP Admin, ADP Accountant]
+
+- adx_entityname: adp_auditprocedure
+  adx_entitylogicalname: adp_auditprocedure
+  adx_name: ADP - Audit Procedure Library (Global Read)
+  adx_scope: Global
+  adx_read: true
+  adx_webroles: [ADP Admin, ADP Accountant]
+
+- adx_entityname: adp_auditlog
+  adx_entitylogicalname: adp_auditlog
+  adx_name: ADP Accountant - Audit Trail (Parent Company)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Accountant - Assigned Companies
+  adx_parentrelationship: adp_company_adp_auditlog
+  adx_read: true
+  adx_webroles: [ADP Accountant]

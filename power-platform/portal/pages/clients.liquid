@@ -2,8 +2,23 @@
 {% assign nav_key = 'clients' %}
 {% assign page_title = 'Clients' %}
 {% assign breadcrumbs = 'Dashboard|/dashboard · Clients' %}
-{% assign page_actions = '<a href="#new" class="btn btn-primary" id="clientsNewBtn">+ New client</a>' %}
+{% assign is_operator   = false %}
+{% assign is_firmadmin  = false %}
+{% assign is_accountant = false %}
+{% assign is_client     = false %}
+{% if adp_personagroup == 'operator'   %}{% assign is_operator   = true %}{% endif %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_firmadmin  = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if adp_personagroup == 'client'     %}{% assign is_client     = true %}{% endif %}
+{% assign can_onboard = false %}
+{% if is_operator or is_firmadmin %}{% assign can_onboard = true %}{% endif %}
+{% if can_onboard %}{% assign page_actions = '<a href="#new" class="btn btn-primary" id="clientsNewBtn">+ New client</a>' %}{% endif %}
 {% include 'adp-shell-open' %}
+
+{% if is_client %}
+  <div class="placeholder" style="padding:18px;text-align:center;color:#6b7280;background:#f7f9fc;border:1px dashed #cbd5e1;border-radius:6px">The clients hub is an internal firm tool. Open <a href="/dashboard">your dashboard</a> for your workspace.</div>
+  {% include 'adp-shell-close' %}
+{% else %}
 
 {% comment %}
   Clients hub
@@ -34,8 +49,10 @@
 
 <nav class="cl-tabs" role="tablist">
   <a class="cl-tab is-active" href="#all"      data-tab="all">All clients</a>
+  {% if can_onboard %}
   <a class="cl-tab"           href="#pipeline" data-tab="pipeline">Onboarding pipeline</a>
   <a class="cl-tab"           href="#new"      data-tab="new">+ New client</a>
+  {% endif %}
 </nav>
 
 <section class="cl-panel is-active" data-panel="all">
@@ -74,7 +91,7 @@
   </table>
 </section>
 
-<section class="cl-panel" data-panel="pipeline">
+<section class="cl-panel" data-panel="pipeline"{% unless can_onboard %} hidden{% endunless %}>
   <div class="cl-pipeline">
     <div class="cl-stage"><h4>Invited</h4>
       <article class="cl-card"><strong>Zenith Foods</strong><small>Invited 2 days ago</small><p>Awaiting kit upload</p></article>
@@ -91,7 +108,7 @@
   </div>
 </section>
 
-<section class="cl-panel" data-panel="new">
+<section class="cl-panel" data-panel="new"{% unless can_onboard %} hidden{% endunless %}>
   <div class="cl-onboard">
     <h3>Invite a new client</h3>
     <p class="muted">Send the client an onboarding kit. They receive an email link to upload statements, share Tally backup and confirm the engagement bundle.</p>
@@ -178,3 +195,4 @@
 </style>
 
 {% include 'adp-shell-close' %}
+{% endif %}

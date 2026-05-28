@@ -1,0 +1,158 @@
+{
+  "name": "Flow_SignOff",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_SignOff",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "workpaperId":  { "type": "string" },
+                "level":        { "type": "string", "enum": ["Preparer", "Manager", "Partner"] },
+                "decision":     { "type": "string", "enum": ["Approve", "Reopen"] },
+                "comments":     { "type": "string" },
+                "reviewerUpn":  { "type": "string" }
+              },
+              "required": ["workpaperId", "level", "decision"]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Create_Review_Row": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "post",
+            "path": "/v2/datasets/default.cds/tables/adp_reviews/items",
+            "body": {
+              "adp_workpaperid@odata.bind": "/adp_workpapers(@{triggerBody()?['workpaperId']})",
+              "adp_level":      "@triggerBody()?['level']",
+              "adp_decision":   "@triggerBody()?['decision']",
+              "adp_reviewer":   "@triggerBody()?['reviewerUpn']",
+              "adp_comments":   "@triggerBody()?['comments']",
+              "adp_signedon":   "@utcNow()",
+              "adp_signaturehash": "@sha256(concat(triggerBody()?['workpaperId'], triggerBody()?['reviewerUpn'], utcNow()))"
+            }
+          }
+        },
+        "Branch_On_Decision": {
+          "runAfter": { "Create_Review_Row": ["Succeeded"] },
+          "type": "Switch",
+          "expression": "@triggerBody()?['decision']",
+          "cases": {
+            "Approve": {
+              "case": "Approve",
+              "actions": {
+                "Mark_Reviewed": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                    "method": "patch",
+                    "path": "/v2/datasets/default.cds/tables/adp_workpapers/items/@{triggerBody()?['workpaperId']}",
+                    "body": { "adp_status": "Reviewed" }
+                  }
+                },
+                "Check_All_Approved": {
+                  "runAfter": { "Mark_Reviewed": ["Succeeded"] },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                    "method": "get",
+                    "path": "/v2/datasets/default.cds/tables/adp_workpapers/items",
+                    "queries": {
+                      "$filter": "adp_status ne 'Reviewed'",
+                      "$count":  true
+                    }
+                  }
+                },
+                "If_All_Reviewed_And_Partner": {
+                  "runAfter": { "Check_All_Approved": ["Succeeded"] },
+                  "type": "If",
+                  "expression": {
+                    "and": [
+                      { "equals":  [ "@triggerBody()?['level']", "Partner" ] },
+                      { "equals":  [ "@body('Check_All_Approved')?['@odata.count']", 0 ] }
+                    ]
+                  },
+                  "actions": {
+                    "Advance_Engagement_To_Finalize": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                        "method": "patch",
+                        "path": "/v2/datasets/default.cds/tables/adp_auditengagements/items/@{body('Create_Review_Row')?['_adp_auditengagementid_value']}",
+                        "body": { "adp_status": "Finalize" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "Reopen": {
+              "case": "Reopen",
+              "actions": {
+                "Mark_Reopened": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                    "method": "patch",
+                    "path": "/v2/datasets/default.cds/tables/adp_workpapers/items/@{triggerBody()?['workpaperId']}",
+                    "body": { "adp_status": "Reopened" }
+                  }
+                },
+                "Email_Preparer": {
+                  "runAfter": { "Mark_Reopened": ["Succeeded"] },
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": { "connectionReferenceName": "shared_office365" },
+                    "method": "post",
+                    "path": "/v2/Mail",
+                    "body": {
+                      "To": "@{body('Create_Review_Row')?['adp_preparer']}",
+                      "Subject": "Workpaper reopened — @{triggerBody()?['workpaperId']}",
+                      "Body":    "Reviewer comments:\n@{triggerBody()?['comments']}\n\nOpen: /workpaper?id=@{triggerBody()?['workpaperId']}"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": { "actions": {} }
+        },
+        "Write_Audit_Log": {
+          "runAfter": { "Branch_On_Decision": ["Succeeded"] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "method": "post",
+            "path": "/v2/datasets/default.cds/tables/adp_auditlogs/items",
+            "body": {
+              "adp_action":     "SignOff",
+              "adp_entityname": "adp_workpaper",
+              "adp_recordid":   "@triggerBody()?['workpaperId']",
+              "adp_actor":      "@triggerBody()?['reviewerUpn']",
+              "adp_summary":    "@{triggerBody()?['level']} @{triggerBody()?['decision']}: @{triggerBody()?['comments']}",
+              "adp_timestamp":  "@utcNow()"
+            }
+          }
+        },
+        "Response": {
+          "runAfter": { "Write_Audit_Log": ["Succeeded"] },
+          "type": "Response",
+          "inputs": { "statusCode": 200, "body": { "ok": true, "reviewId": "@body('Create_Review_Row')?['adp_reviewid']" } }
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": { "connectionName": "shared-cds",  "source": "Embedded" },
+      "shared_office365":                { "connectionName": "shared-o365","source": "Embedded" }
+    }
+  }
+}

@@ -14,7 +14,8 @@
       "reports": [
         { "id": "overview",     "name": "Financial Overview",      "reportId": "11111111-1111-1111-1111-111111111111", "category": "Finance",     "default": true },
         { "id": "gst",          "name": "GST Reconciliation",      "reportId": "22222222-2222-2222-2222-222222222222", "category": "Compliance" },
-        { "id": "bank",         "name": "Bank Statement Analysis", "reportId": "33333333-3333-3333-3333-333333333333", "category": "Finance" }
+        { "id": "bank",         "name": "Bank Statement Analysis", "reportId": "33333333-3333-3333-3333-333333333333", "category": "Finance" },
+        { "id": "audit",        "name": "Audit Exceptions",        "reportId": "aaaaaaaa-1111-1111-1111-aaaaaaaaaaa1", "category": "Audit" }
       ]
     },
     {
@@ -23,7 +24,8 @@
       "logo": "BI",
       "reports": [
         { "id": "overview",  "name": "Financial Overview",  "reportId": "44444444-4444-4444-4444-444444444444", "category": "Finance", "default": true },
-        { "id": "ar-aging",  "name": "AR Aging",            "reportId": "55555555-5555-5555-5555-555555555555", "category": "Sales" }
+        { "id": "ar-aging",  "name": "AR Aging",            "reportId": "55555555-5555-5555-5555-555555555555", "category": "Sales" },
+        { "id": "audit",     "name": "Audit Exceptions",    "reportId": "aaaaaaaa-2222-2222-2222-aaaaaaaaaaa2", "category": "Audit" }
       ]
     },
     {
@@ -32,7 +34,8 @@
       "logo": "GF",
       "reports": [
         { "id": "overview",  "name": "Financial Overview",  "reportId": "66666666-6666-6666-6666-666666666666", "category": "Finance", "default": true },
-        { "id": "inventory", "name": "Inventory Turnover",  "reportId": "77777777-7777-7777-7777-777777777777", "category": "Operations" }
+        { "id": "inventory", "name": "Inventory Turnover",  "reportId": "77777777-7777-7777-7777-777777777777", "category": "Operations" },
+        { "id": "audit",     "name": "Audit Exceptions",    "reportId": "aaaaaaaa-3333-3333-3333-aaaaaaaaaaa3", "category": "Audit" }
       ]
     }
   ]

@@ -1,0 +1,399 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'audit' %}
+{% assign eng_id = request.params.id | default: 'aud-001' %}
+{% assign page_title = 'Audit engagement' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Audit|/audit · Engagement' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Audit Engagement detail
+  -----------------------
+  URL: /audit-engagement?id=<auditengagementid>
+  Tabs: Planning · Fieldwork (workpapers) · Exceptions · Client requests · Review · Report
+{% endcomment %}
+
+{% assign role_norm = adp_role | downcase %}
+{% assign is_operator   = false %}
+{% assign is_firmadmin  = false %}
+{% assign is_accountant = false %}
+{% assign is_client     = false %}
+{% if adp_personagroup == 'operator'   %}{% assign is_operator   = true %}{% endif %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_firmadmin  = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if adp_personagroup == 'client'     %}{% assign is_client     = true %}{% endif %}
+{% assign can_edit  = false %}
+{% assign can_sign  = false %}
+{% if is_operator or is_firmadmin or is_accountant %}{% assign can_edit = true %}{% endif %}
+{% if is_operator or is_firmadmin %}{% assign can_sign = true %}{% endif %}
+
+{% fetchxml eng_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="1">
+  <entity name="adp_auditengagement">
+    <attribute name="adp_auditengagementid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_programcode" />
+    <attribute name="adp_programname" />
+    <attribute name="adp_framework" />
+    <attribute name="adp_periodfrom" />
+    <attribute name="adp_periodto" />
+    <attribute name="adp_materiality" />
+    <attribute name="adp_performancemateriality" />
+    <attribute name="adp_status" />
+    <attribute name="adp_leadpartner" />
+    <attribute name="adp_leadmanager" />
+    <attribute name="adp_progress" />
+    <attribute name="adp_duedate" />
+    <attribute name="adp_riskareas" />
+    <filter><condition attribute="adp_auditengagementid" operator="eq" value="{{ eng_id }}" /></filter>
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign eng = eng_query.results.entities[0] %}
+
+{% fetchxml wps_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+  <entity name="adp_workpaper">
+    <attribute name="adp_workpaperid" />
+    <attribute name="adp_proceduresection" />
+    <attribute name="adp_procedurecode" />
+    <attribute name="adp_procedurename" />
+    <attribute name="adp_assertion" />
+    <attribute name="adp_risklevel" />
+    <attribute name="adp_status" />
+    <attribute name="adp_preparer" />
+    <attribute name="adp_preparedon" />
+    <attribute name="adp_evidencecount" />
+    <attribute name="adp_exceptionscount" />
+    <attribute name="adp_samplesize" />
+    <filter><condition attribute="adp_auditengagementid" operator="eq" value="{{ eng_id }}" /></filter>
+    <order attribute="adp_proceduresection" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign wps = wps_query.results.entities %}
+
+{% fetchxml exc_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+  <entity name="adp_exception">
+    <attribute name="adp_exceptionid" />
+    <attribute name="adp_rulecode" />
+    <attribute name="adp_rulename" />
+    <attribute name="adp_source" />
+    <attribute name="adp_severity" />
+    <attribute name="adp_amount" />
+    <attribute name="adp_status" />
+    <attribute name="adp_description" />
+    <attribute name="adp_detectedon" />
+    <attribute name="adp_linkedworkpaperid" />
+    <filter><condition attribute="adp_auditengagementid" operator="eq" value="{{ eng_id }}" /></filter>
+    <order attribute="adp_severity" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign exc = exc_query.results.entities %}
+
+{% fetchxml req_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+  <entity name="adp_clientrequest">
+    <attribute name="adp_clientrequestid" />
+    <attribute name="adp_item" />
+    <attribute name="adp_duedate" />
+    <attribute name="adp_status" />
+    <attribute name="adp_assignee" />
+    <attribute name="adp_evidenceurl" />
+    <filter><condition attribute="adp_auditengagementid" operator="eq" value="{{ eng_id }}" /></filter>
+    <order attribute="adp_duedate" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign reqs = req_query.results.entities %}
+
+{% fetchxml log_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+  <entity name="adp_auditlog">
+    <attribute name="adp_auditlogid" />
+    <attribute name="adp_action" />
+    <attribute name="adp_actor" />
+    <attribute name="adp_timestamp" />
+    <attribute name="adp_entityname" />
+    <attribute name="adp_summary" />
+    <filter><condition attribute="adp_auditengagementid" operator="eq" value="{{ eng_id }}" /></filter>
+    <order attribute="adp_timestamp" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign auditlog = log_query.results.entities %}
+
+{% if eng == nil %}
+  <div class="placeholder">Engagement <code>{{ eng_id }}</code> not found.</div>
+{% else %}
+
+<section class="adp-audit-eng">
+  <header class="ae-header">
+    <div>
+      {% if is_client %}
+      <h2>Your audit — {{ eng.adp_programname }} <span class="aa-fw aa-fw-{{ eng.adp_framework.label | downcase }}">{{ eng.adp_framework.label }}</span></h2>
+      {% else %}
+      <h2>{{ eng.adp_programname }} <span class="aa-fw aa-fw-{{ eng.adp_framework.label | downcase }}">{{ eng.adp_framework.label }}</span></h2>
+      {% endif %}
+      <p class="muted">
+        <strong>{{ eng.adp_companyid.name | default: eng.adp_companyid.id }}</strong>
+        &middot; Period {{ eng.adp_periodfrom }} → {{ eng.adp_periodto }}
+        {% unless is_client %}&middot; Partner: {{ eng.adp_leadpartner }} &middot; Manager: {{ eng.adp_leadmanager }}{% endunless %}
+      </p>
+    </div>
+    <div class="ae-meta">
+      {% unless is_client %}
+      <div class="ae-meta-kv"><span class="muted">Materiality</span><strong data-rupee>{{ eng.adp_materiality }}</strong></div>
+      <div class="ae-meta-kv"><span class="muted">Performance</span><strong>{{ eng.adp_performancemateriality }}%</strong></div>
+      {% endunless %}
+      <div class="ae-meta-kv"><span class="muted">Due</span><strong>{{ eng.adp_duedate }}</strong></div>
+      <div class="ae-meta-kv"><span class="muted">Status</span><span class="aa-status aa-status-{{ eng.adp_status.label | downcase }}">{{ eng.adp_status.label }}</span></div>
+    </div>
+  </header>
+
+  {% comment %} ---- Status timeline ---- {% endcomment %}
+  <ol class="ae-timeline" aria-label="Status pipeline">
+    {% assign stages = 'Planning,Fieldwork,Review,Finalize,Issued' | split: ',' %}
+    {% assign reached = true %}
+    {% for s in stages %}
+      <li class="ae-tl-step {% if eng.adp_status.label == s %}is-current{% endif %} {% if reached %}is-reached{% endif %}">
+        <span class="ae-tl-dot"></span><span>{{ s }}</span>
+      </li>
+      {% if eng.adp_status.label == s %}{% assign reached = false %}{% endif %}
+    {% endfor %}
+  </ol>
+
+  <nav class="ae-tabs" role="tablist">
+    <button type="button" class="ae-tab is-active" data-tab="planning"  role="tab" aria-selected="true">Planning</button>
+    <button type="button" class="ae-tab"           data-tab="fieldwork" role="tab" aria-selected="false">Fieldwork <span class="ae-tab-c">{{ wps.size }}</span></button>
+    <button type="button" class="ae-tab"           data-tab="exceptions" role="tab" aria-selected="false">Exceptions <span class="ae-tab-c">{{ exc.size }}</span></button>
+    <button type="button" class="ae-tab"           data-tab="requests"  role="tab" aria-selected="false">Client requests <span class="ae-tab-c">{{ reqs.size }}</span></button>
+    <button type="button" class="ae-tab"           data-tab="review"    role="tab" aria-selected="false">Review</button>
+    <button type="button" class="ae-tab"           data-tab="report"    role="tab" aria-selected="false">Report</button>
+  </nav>
+
+  {% comment %} ---- Planning ---- {% endcomment %}
+  <section class="ae-panel is-active" data-panel="planning">
+    <h3>Risk areas &amp; planning</h3>
+    <div class="ae-grid-2">
+      <div>
+        <h4>Materiality</h4>
+        <p>
+          Overall materiality: <strong data-rupee>{{ eng.adp_materiality }}</strong><br/>
+          Performance materiality ({{ eng.adp_performancemateriality }}%): <strong data-rupee>{{ eng.adp_materiality | times: eng.adp_performancemateriality | divided_by: 100 }}</strong><br/>
+          Clearly trivial threshold (5% of perf): <strong data-rupee>{{ eng.adp_materiality | times: eng.adp_performancemateriality | divided_by: 100 | divided_by: 20 }}</strong>
+        </p>
+        {% if can_edit %}<button type="button" class="btn btn-link" id="aeRecalcMat">Recompute from program default</button>{% endif %}
+      </div>
+      <div>
+        <h4>Risk areas</h4>
+        <ul class="ae-risk-list">
+          {% assign risks = eng.adp_riskareas | default: 'Revenue recognition (cut-off),Related-party transactions,Inventory valuation,Going concern' | split: ',' %}
+          {% for r in risks %}<li>{{ r }}</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+    <h4 style="margin-top:14px">Program: {{ eng.adp_programcode }}</h4>
+    <p class="muted">Workpaper set seeded from the procedure library when this engagement was started.</p>
+  </section>
+
+  {% comment %} ---- Fieldwork (workpapers) ---- {% endcomment %}
+  <section class="ae-panel" data-panel="fieldwork">
+    <div class="aa-section-head">
+      <h3>Workpapers</h3>
+      <input type="search" id="aeWpFilter" placeholder="Filter section / code / name..." class="aa-filter" />
+    </div>
+    {% if wps.size == 0 %}
+      <div class="placeholder">No workpapers seeded yet. They are created automatically when an engagement is started from the program catalog.</div>
+    {% else %}
+    <table class="aa-table">
+      <thead><tr><th>Section</th><th>Code</th><th>Procedure</th><th>Assertion</th><th>Risk</th><th>Status</th><th>Evidence</th><th>Exc</th>{% unless is_client %}<th></th>{% endunless %}</tr></thead>
+      <tbody>
+        {% for w in wps %}
+        <tr>
+          <td><span class="aa-section-tag">{{ w.adp_proceduresection }}</span></td>
+          <td><code>{{ w.adp_procedurecode }}</code></td>
+          <td>{{ w.adp_procedurename }}<br/><small class="muted">{{ w.adp_preparer }} &middot; {{ w.adp_preparedon }}</small></td>
+          <td>{{ w.adp_assertion.label }}</td>
+          <td><span class="aa-risk aa-risk-{{ w.adp_risklevel.label | downcase }}">{{ w.adp_risklevel.label }}</span></td>
+          <td><span class="aa-status aa-status-{{ w.adp_status.label | downcase | replace: ' ', '-' }}">{{ w.adp_status.label }}</span></td>
+          <td>{{ w.adp_evidencecount | default: 0 }}</td>
+          <td>{% if w.adp_exceptionscount > 0 %}<span class="aa-pill aa-pill-warn">{{ w.adp_exceptionscount }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          {% unless is_client %}<td><a class="btn btn-link" href="/workpaper?id={{ w.adp_workpaperid }}">Open</a></td>{% endunless %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  {% comment %} ---- Exceptions ---- {% endcomment %}
+  <section class="ae-panel" data-panel="exceptions">
+    <div class="aa-section-head">
+      <h3>Exceptions flagged by the engine</h3>
+      {% if can_edit %}<button type="button" class="btn btn-link" id="aeRunExc">Run exception engine now</button>{% endif %}
+    </div>
+    {% if exc.size == 0 %}
+      <div class="placeholder">No exceptions yet. Trigger the engine after evidence is loaded.</div>
+    {% else %}
+    <table class="aa-table">
+      <thead><tr><th>Rule</th><th>Source</th><th>Severity</th><th>Amount</th><th>Description</th><th>Linked WP</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for e in exc %}
+        <tr>
+          <td><code>{{ e.adp_rulecode }}</code><br/>{{ e.adp_rulename }}</td>
+          <td>{{ e.adp_source.label }}</td>
+          <td><span class="aa-risk aa-risk-{{ e.adp_severity.label | downcase }}">{{ e.adp_severity.label }}</span></td>
+          <td>&#8377;{{ e.adp_amount }}</td>
+          <td>{{ e.adp_description }}</td>
+          <td>{% if e.adp_linkedworkpaperid %}<a href="/workpaper?id={{ e.adp_linkedworkpaperid }}">Open WP</a>{% else %}<span class="muted">Unlinked</span>{% endif %}</td>
+          <td><span class="aa-status aa-status-{{ e.adp_status.label | downcase | replace: ' ', '-' }}">{{ e.adp_status.label }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  {% comment %} ---- Client requests ---- {% endcomment %}
+  <section class="ae-panel" data-panel="requests">
+    <div class="aa-section-head">
+      <h3>{% if is_client %}Documents we still need from you{% else %}Prepared-by-client (PBC) requests{% endif %}</h3>
+      {% if can_edit and is_client == false %}<button type="button" class="btn btn-link" id="aeNewReq">+ New request</button>{% endif %}
+    </div>
+    {% if reqs.size == 0 %}
+      <div class="placeholder">{% if is_client %}You're all caught up — no open requests.{% else %}No PBC requests for this engagement.{% endif %}</div>
+    {% else %}
+    <table class="aa-table">
+      <thead><tr><th>Item</th><th>Assignee</th><th>Due</th><th>Status</th><th>Evidence</th></tr></thead>
+      <tbody>
+        {% for r in reqs %}
+        <tr>
+          <td>{{ r.adp_item }}</td>
+          <td>{{ r.adp_assignee }}</td>
+          <td>{{ r.adp_duedate }}</td>
+          <td><span class="aa-status aa-status-{{ r.adp_status.label | downcase | replace: ' ', '-' }}">{{ r.adp_status.label }}</span></td>
+          <td>{% if r.adp_evidenceurl %}<a href="{{ r.adp_evidenceurl }}">View</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+
+  {% comment %} ---- Review (sign-off + audit trail) ---- {% endcomment %}
+  <section class="ae-panel" data-panel="review">
+    <h3>Audit trail</h3>
+    <ol class="ae-log">
+      {% for l in auditlog %}
+        <li>
+          <strong>{{ l.adp_action.label }}</strong> on <code>{{ l.adp_entityname }}</code>
+          by {{ l.adp_actor }} at {{ l.adp_timestamp }}
+          <div class="muted">{{ l.adp_summary }}</div>
+        </li>
+      {% endfor %}
+    </ol>
+    {% if can_sign and eng.adp_status.label == 'Review' %}
+      <button type="button" class="btn btn-primary" id="aePartnerApprove">Partner approval &amp; move to Finalize</button>
+    {% endif %}
+  </section>
+
+  {% comment %} ---- Report ---- {% endcomment %}
+  <section class="ae-panel" data-panel="report">
+    <h3>Final audit report</h3>
+    {% if eng.adp_status.label == 'Finalize' or eng.adp_status.label == 'Issued' %}
+      <p>Generate the auditor's report (Word + PDF) using the workpaper conclusions and exceptions.</p>
+      {% if can_sign %}<button type="button" class="btn btn-primary" id="aeGenReport">Generate report (Word + PDF)</button>{% endif %}
+      <p class="muted" style="margin-top:8px">Template: <code>power-platform/templates/audit-report.docx</code></p>
+    {% else %}
+      <div class="placeholder">Report generation unlocks when engagement reaches <strong>Finalize</strong>.</div>
+    {% endif %}
+  </section>
+</section>
+
+<style>
+  .adp-audit-eng { color:#0f172a; }
+  .adp-audit-eng .ae-header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:14px; background:#fff; border:1px solid #e1e6ec; border-radius:10px; margin-bottom:12px; }
+  .adp-audit-eng .ae-header h2 { margin:0 0 4px; color:#00395E; font-size:18px; display:flex; gap:8px; align-items:center; }
+  .adp-audit-eng .ae-meta { display:flex; gap:14px; flex-wrap:wrap; }
+  .adp-audit-eng .ae-meta-kv { display:flex; flex-direction:column; }
+  .adp-audit-eng .ae-meta-kv strong { color:#00395E; }
+  .adp-audit-eng .ae-timeline { list-style:none; padding:0; margin:0 0 14px; display:flex; gap:0; background:#fff; border:1px solid #e1e6ec; border-radius:10px; overflow:hidden; }
+  .adp-audit-eng .ae-tl-step { flex:1; padding:10px 12px; display:flex; gap:8px; align-items:center; border-right:1px solid #f1f5f9; color:#94a3b8; font-size:12px; font-weight:600; }
+  .adp-audit-eng .ae-tl-step:last-child { border-right:0; }
+  .adp-audit-eng .ae-tl-dot { width:10px; height:10px; border-radius:50%; background:#cbd5e1; }
+  .adp-audit-eng .ae-tl-step.is-reached { color:#00395E; }
+  .adp-audit-eng .ae-tl-step.is-reached .ae-tl-dot { background:#00A8E8; }
+  .adp-audit-eng .ae-tl-step.is-current { background:#e0f2fe; color:#075985; }
+  .adp-audit-eng .ae-tl-step.is-current .ae-tl-dot { background:#00395E; box-shadow:0 0 0 3px #bae6fd; }
+  .adp-audit-eng .ae-tabs { display:flex; gap:4px; border-bottom:1px solid #e1e6ec; margin-bottom:14px; flex-wrap:wrap; }
+  .adp-audit-eng .ae-tab { background:transparent; border:0; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:600; color:#475569; border-bottom:2px solid transparent; display:flex; gap:6px; align-items:center; }
+  .adp-audit-eng .ae-tab.is-active { color:#00395E; border-bottom-color:#00A8E8; }
+  .adp-audit-eng .ae-tab-c { background:#e2e8f0; border-radius:999px; padding:1px 7px; font-size:11px; }
+  .adp-audit-eng .ae-panel { display:none; background:#fff; border:1px solid #e1e6ec; border-radius:10px; padding:14px; }
+  .adp-audit-eng .ae-panel.is-active { display:block; }
+  .adp-audit-eng .ae-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width: 780px) { .adp-audit-eng .ae-grid-2 { grid-template-columns:1fr; } }
+  .adp-audit-eng .ae-risk-list { padding-left:18px; }
+  .adp-audit-eng .ae-log { padding-left:18px; }
+  .adp-audit-eng .ae-log li { margin-bottom:8px; }
+  .aa-fw, .aa-status, .aa-risk, .aa-pill, .aa-section-tag { /* shared with audit.liquid styles */ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .aa-fw-statutory { background:#dbeafe; color:#1e40af; } .aa-fw-gst { background:#fef3c7; color:#92400e; } .aa-fw-internal { background:#ede9fe; color:#6d28d9; }
+  .aa-status { background:#f1f5f9; color:#334155; }
+  .aa-status-planning { background:#e0e7ff; color:#3730a3; } .aa-status-fieldwork { background:#dcfce7; color:#166534; } .aa-status-review { background:#fef9c3; color:#854d0e; } .aa-status-finalize { background:#ffedd5; color:#9a3412; } .aa-status-issued { background:#e2e8f0; color:#475569; }
+  .aa-status-open, .aa-status-in-progress { background:#e0f2fe; color:#075985; } .aa-status-ready-for-review { background:#fef9c3; color:#854d0e; } .aa-status-reviewed, .aa-status-accepted { background:#dcfce7; color:#166534; } .aa-status-reopened, .aa-status-overdue { background:#fee2e2; color:#991b1b; }
+  .aa-risk-high { background:#fee2e2; color:#991b1b; } .aa-risk-medium { background:#fef9c3; color:#854d0e; } .aa-risk-low { background:#dcfce7; color:#166534; }
+  .aa-pill { background:#e2e8f0; color:#475569; } .aa-pill-warn { background:#fee2e2; color:#991b1b; }
+  .aa-section-tag { background:#f1f5f9; color:#475569; padding:1px 6px; border-radius:4px; }
+  .aa-filter { padding:5px 9px; border:1px solid #e1e6ec; border-radius:6px; font-size:12px; min-width:240px; }
+  .aa-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .aa-table th, .aa-table td { padding:8px 10px; text-align:left; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+  .aa-table th { background:#f7f9fc; font-weight:600; color:#475569; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .btn { padding:6px 10px; border-radius:6px; border:1px solid transparent; font-size:13px; cursor:pointer; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .btn-primary { background:#00395E; color:#fff; } .btn-link { background:transparent; color:#00395E; border:1px solid #e1e6ec; }
+  .placeholder { padding:18px; text-align:center; color:#6b7280; background:#f7f9fc; border:1px dashed #cbd5e1; border-radius:6px; }
+</style>
+
+<script>
+  (function () {
+    var tabs = document.querySelectorAll('.adp-audit-eng .ae-tab');
+    var panels = document.querySelectorAll('.adp-audit-eng .ae-panel');
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () {
+        tabs.forEach(function (x) { x.classList.remove('is-active'); x.setAttribute('aria-selected','false'); });
+        panels.forEach(function (p) { p.classList.remove('is-active'); });
+        t.classList.add('is-active'); t.setAttribute('aria-selected','true');
+        var p = document.querySelector('.adp-audit-eng .ae-panel[data-panel="' + t.dataset.tab + '"]');
+        if (p) p.classList.add('is-active');
+      });
+    });
+    var wf = document.getElementById('aeWpFilter');
+    if (wf) wf.addEventListener('input', function () {
+      var q = wf.value.toLowerCase();
+      document.querySelectorAll('.ae-panel[data-panel="fieldwork"] tbody tr').forEach(function (r) {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+    var rx = document.getElementById('aeRunExc');
+    if (rx) rx.addEventListener('click', function () { alert('Preview: Flow_RunExceptionEngine invoked for this engagement.'); });
+    var pa = document.getElementById('aePartnerApprove');
+    if (pa) pa.addEventListener('click', function () { alert('Preview: Flow_SignOff(level=Partner, decision=Approve) — engagement moves to Finalize.'); });
+    var gr = document.getElementById('aeGenReport');
+    if (gr) gr.addEventListener('click', function () { alert('Preview: Flow_GenerateAuditReport invoked. Word + PDF will land in SharePoint.'); });
+    var rc = document.getElementById('aeRecalcMat');
+    if (rc) rc.addEventListener('click', function () { alert('Preview: materiality recomputed from program defaults × prior-year revenue.'); });
+    var nr = document.getElementById('aeNewReq');
+    if (nr) nr.addEventListener('click', function () {
+      var item = prompt('New client request — describe the item required:');
+      if (item) alert('Preview: PBC request "' + item + '" created and notification emailed to client.');
+    });
+    // Indian numbering format (e.g. 1500000 -> 15,00,000) for any element marked [data-rupee].
+    document.querySelectorAll('.adp-audit-eng [data-rupee]').forEach(function (el) {
+      var n = parseFloat((el.textContent || '').replace(/[^0-9.-]/g, ''));
+      if (!isNaN(n)) el.textContent = '₹' + n.toLocaleString('en-IN');
+    });
+  })();
+</script>
+
+{% endif %}
+{% include 'adp-shell-close' %}

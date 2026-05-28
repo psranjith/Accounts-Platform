@@ -1,0 +1,294 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'audit' %}
+{% assign wp_id = request.params.id | default: 'wp-001' %}
+{% assign page_title = 'Workpaper' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Audit|/audit · Workpaper' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Single Workpaper editor
+  -----------------------
+  Captures: procedure description, sample selection, evidence (linked from inbox),
+  conclusion text, exceptions and review history. Action buttons:
+   * Preparer (Accountant) : Save · Submit for Review
+   * Reviewer (Firm Admin) : Approve · Reopen
+{% endcomment %}
+
+{% assign role_norm = adp_role | downcase %}
+{% assign is_operator   = false %}
+{% assign is_firmadmin  = false %}
+{% assign is_accountant = false %}
+{% assign is_client     = false %}
+{% if adp_personagroup == 'operator'   %}{% assign is_operator   = true %}{% endif %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_firmadmin  = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if adp_personagroup == 'client'     %}{% assign is_client     = true %}{% endif %}
+{% assign can_edit   = false %}
+{% assign can_review = false %}
+{% if is_operator or is_firmadmin or is_accountant %}{% assign can_edit   = true %}{% endif %}
+{% if is_operator or is_firmadmin %}{% assign can_review = true %}{% endif %}
+
+{% fetchxml wp_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="1">
+  <entity name="adp_workpaper">
+    <attribute name="adp_workpaperid" />
+    <attribute name="adp_auditengagementid" />
+    <attribute name="adp_proceduresection" />
+    <attribute name="adp_procedurecode" />
+    <attribute name="adp_procedurename" />
+    <attribute name="adp_proceduredescription" />
+    <attribute name="adp_assertion" />
+    <attribute name="adp_risklevel" />
+    <attribute name="adp_status" />
+    <attribute name="adp_preparer" />
+    <attribute name="adp_preparedon" />
+    <attribute name="adp_conclusion" />
+    <attribute name="adp_samplesize" />
+    <attribute name="adp_samplingmethod" />
+    <attribute name="adp_populationsize" />
+    <filter><condition attribute="adp_workpaperid" operator="eq" value="{{ wp_id }}" /></filter>
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign wp = wp_query.results.entities[0] %}
+
+{% fetchxml evi_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+  <entity name="adp_evidence">
+    <attribute name="adp_evidenceid" />
+    <attribute name="adp_filename" />
+    <attribute name="adp_fileurl" />
+    <attribute name="adp_sourcechannel" />
+    <attribute name="adp_dataingestionid" />
+    <attribute name="adp_uploadedby" />
+    <attribute name="adp_uploadedon" />
+    <attribute name="adp_hashsha256" />
+    <filter><condition attribute="adp_workpaperid" operator="eq" value="{{ wp_id }}" /></filter>
+    <order attribute="adp_uploadedon" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign evi = evi_query.results.entities %}
+
+{% fetchxml rev_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="20">
+  <entity name="adp_review">
+    <attribute name="adp_reviewid" />
+    <attribute name="adp_level" />
+    <attribute name="adp_reviewer" />
+    <attribute name="adp_decision" />
+    <attribute name="adp_comments" />
+    <attribute name="adp_signedon" />
+    <filter><condition attribute="adp_workpaperid" operator="eq" value="{{ wp_id }}" /></filter>
+    <order attribute="adp_signedon" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign reviews = rev_query.results.entities %}
+
+{% fetchxml smp_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+  <entity name="adp_sample">
+    <attribute name="adp_sampleid" />
+    <attribute name="adp_itemref" />
+    <attribute name="adp_itemdescription" />
+    <attribute name="adp_amount" />
+    <attribute name="adp_testresult" />
+    <attribute name="adp_notes" />
+    <filter><condition attribute="adp_workpaperid" operator="eq" value="{{ wp_id }}" /></filter>
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign samples = smp_query.results.entities %}
+
+{% if is_client %}
+  <div class="placeholder">Workpapers are internal audit working documents and aren't visible to clients. <a href="/audit-engagement?id={{ wp.adp_auditengagementid | default: '' }}">Return to your engagement</a>.</div>
+{% elsif wp == nil %}
+  <div class="placeholder">Workpaper <code>{{ wp_id }}</code> not found.</div>
+{% else %}
+
+<section class="adp-workpaper">
+  <header class="wp-header">
+    <div>
+      <span class="aa-section-tag">{{ wp.adp_proceduresection }}</span>
+      <h2 style="margin:.25rem 0"><code>{{ wp.adp_procedurecode }}</code> &middot; {{ wp.adp_procedurename }}</h2>
+      <p class="muted">Engagement: <a href="/audit-engagement?id={{ wp.adp_auditengagementid }}">{{ wp.adp_auditengagementid }}</a>
+        &middot; Preparer: {{ wp.adp_preparer }}
+        &middot; Prepared: {{ wp.adp_preparedon }}
+        &middot; Assertion: {{ wp.adp_assertion.label }}
+        &middot; Risk: <span class="aa-risk aa-risk-{{ wp.adp_risklevel.label | downcase }}">{{ wp.adp_risklevel.label }}</span>
+      </p>
+    </div>
+    <div>
+      <span class="aa-status aa-status-{{ wp.adp_status.label | downcase | replace: ' ', '-' }}">{{ wp.adp_status.label }}</span>
+    </div>
+  </header>
+
+  <div class="wp-grid">
+    {% comment %} ---- Left column: procedure + sample + conclusion ---- {% endcomment %}
+    <div>
+      <section class="wp-card">
+        <h3>Procedure</h3>
+        <p>{{ wp.adp_proceduredescription | default: 'Perform the test as described in the audit program. Document the source data, sample selected, test performed and result. Conclude on the assertion.' }}</p>
+      </section>
+
+      <section class="wp-card">
+        <h3>Sample selection
+          <small class="muted">{{ wp.adp_samplingmethod.label | default: 'Random' }} · n={{ wp.adp_samplesize | default: 0 }} of {{ wp.adp_populationsize | default: 0 }}</small>
+        </h3>
+        {% if can_edit %}
+        <div class="wp-sample-actions">
+          <label>Method
+            <select id="wpSampleMethod">
+              <option>Random</option><option>Systematic</option><option>MUS</option><option>Judgmental</option>
+            </select>
+          </label>
+          <label>Size <input type="number" id="wpSampleSize" min="1" value="{{ wp.adp_samplesize | default: 25 }}" /></label>
+          <button type="button" class="btn btn-link" id="wpGenSample">Generate sample</button>
+        </div>
+        {% endif %}
+        <table class="aa-table aa-table-sm">
+          <thead><tr><th>Ref</th><th>Description</th><th>Amount</th><th>Result</th><th>Notes</th></tr></thead>
+          <tbody>
+            {% for s in samples %}
+            <tr>
+              <td><code>{{ s.adp_itemref }}</code></td>
+              <td>{{ s.adp_itemdescription }}</td>
+              <td data-rupee>{{ s.adp_amount }}</td>
+              <td><span class="aa-status aa-status-{{ s.adp_testresult.label | downcase }}">{{ s.adp_testresult.label }}</span></td>
+              <td>{{ s.adp_notes }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="wp-card">
+        <h3>Conclusion</h3>
+        {% if can_edit and wp.adp_status.label != 'Reviewed' %}
+          <textarea id="wpConclusion" rows="4" placeholder="Document your conclusion on the assertion...">{{ wp.adp_conclusion }}</textarea>
+        {% else %}
+          <p>{{ wp.adp_conclusion | default: '— Not yet concluded —' }}</p>
+        {% endif %}
+      </section>
+    </div>
+
+    {% comment %} ---- Right column: evidence + review history + actions ---- {% endcomment %}
+    <aside>
+      <section class="wp-card">
+        <h3>Evidence
+          {% if can_edit %}<button type="button" class="btn btn-link" id="wpAddEvidence">+ Attach from Inbox</button>{% endif %}
+        </h3>
+        {% if evi.size == 0 %}
+          <div class="placeholder">No evidence attached yet.</div>
+        {% else %}
+        <ul class="wp-evi-list">
+          {% for e in evi %}
+            <li>
+              <a href="{{ e.adp_fileurl }}">{{ e.adp_filename }}</a>
+              <small class="muted">{{ e.adp_sourcechannel.label }} &middot; {{ e.adp_uploadedby }} &middot; {{ e.adp_uploadedon }}</small>
+              <code class="wp-hash" title="SHA-256">{{ e.adp_hashsha256 | slice: 0, 10 }}…</code>
+            </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </section>
+
+      <section class="wp-card">
+        <h3>Review history</h3>
+        {% if reviews.size == 0 %}
+          <div class="placeholder">Not reviewed yet.</div>
+        {% else %}
+        <ol class="wp-rev-list">
+          {% for r in reviews %}
+          <li class="wp-rev wp-rev-{{ r.adp_decision.label | downcase }}">
+            <strong>{{ r.adp_level.label }}</strong> · {{ r.adp_reviewer }}
+            <span class="aa-status aa-status-{{ r.adp_decision.label | downcase }}">{{ r.adp_decision.label }}</span>
+            <div class="muted">{{ r.adp_signedon }}</div>
+            <p>{{ r.adp_comments }}</p>
+          </li>
+          {% endfor %}
+        </ol>
+        {% endif %}
+      </section>
+
+      <section class="wp-card">
+        <h3>Actions</h3>
+        <div class="wp-actions">
+          {% if can_edit and wp.adp_status.label != 'Reviewed' %}
+            <button type="button" class="btn btn-link" id="wpSave">Save draft</button>
+            <button type="button" class="btn btn-primary" id="wpSubmit">Submit for review</button>
+          {% endif %}
+          {% if can_review and wp.adp_status.label == 'Ready for Review' %}
+            <button type="button" class="btn btn-primary" id="wpApprove">Approve</button>
+            <button type="button" class="btn btn-link wp-danger" id="wpReopen">Reopen</button>
+          {% endif %}
+        </div>
+        <p class="muted" style="margin-top:6px; font-size:11px">All actions write an immutable entry to <code>adp_auditlog</code>.</p>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<style>
+  .adp-workpaper { color:#0f172a; }
+  .adp-workpaper .wp-header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; background:#fff; border:1px solid #e1e6ec; border-radius:10px; padding:14px; margin-bottom:14px; flex-wrap:wrap; }
+  .adp-workpaper .wp-header h2 { color:#00395E; font-size:18px; }
+  .adp-workpaper .wp-grid { display:grid; grid-template-columns: 1fr 320px; gap:14px; }
+  @media (max-width: 900px) { .adp-workpaper .wp-grid { grid-template-columns:1fr; } }
+  .adp-workpaper .wp-card { background:#fff; border:1px solid #e1e6ec; border-radius:10px; padding:12px 14px; margin-bottom:12px; }
+  .adp-workpaper .wp-card h3 { margin:0 0 8px; color:#00395E; font-size:14px; display:flex; justify-content:space-between; gap:6px; align-items:baseline; flex-wrap:wrap; }
+  .adp-workpaper textarea { width:100%; border:1px solid #e1e6ec; border-radius:6px; padding:8px; font:inherit; }
+  .adp-workpaper .wp-sample-actions { display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin-bottom:8px; }
+  .adp-workpaper .wp-sample-actions label { display:flex; flex-direction:column; font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }
+  .adp-workpaper .wp-sample-actions input, .adp-workpaper .wp-sample-actions select { border:1px solid #e1e6ec; border-radius:6px; padding:5px 8px; font-size:13px; }
+  .adp-workpaper .wp-evi-list, .adp-workpaper .wp-rev-list { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  .adp-workpaper .wp-evi-list li { padding:6px 8px; border:1px solid #f1f5f9; border-radius:6px; display:grid; gap:2px; }
+  .adp-workpaper .wp-hash { font-size:10px; color:#64748b; }
+  .adp-workpaper .wp-rev { padding:8px 10px; border-left:3px solid #cbd5e1; background:#f8fafc; border-radius:0 6px 6px 0; }
+  .adp-workpaper .wp-rev-approve { border-left-color:#16a34a; }
+  .adp-workpaper .wp-rev-reopen { border-left-color:#dc2626; }
+  .adp-workpaper .wp-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .adp-workpaper .wp-danger { color:#991b1b; border-color:#fecaca; }
+  .aa-section-tag { display:inline-block; background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+  .aa-status { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; background:#f1f5f9; color:#334155; }
+  .aa-status-open, .aa-status-in-progress { background:#e0f2fe; color:#075985; } .aa-status-ready-for-review { background:#fef9c3; color:#854d0e; } .aa-status-reviewed, .aa-status-pass, .aa-status-approve { background:#dcfce7; color:#166534; } .aa-status-reopened, .aa-status-fail, .aa-status-reopen { background:#fee2e2; color:#991b1b; }
+  .aa-risk { display:inline-block; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:700; }
+  .aa-risk-high { background:#fee2e2; color:#991b1b; } .aa-risk-medium { background:#fef9c3; color:#854d0e; } .aa-risk-low { background:#dcfce7; color:#166534; }
+  .aa-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .aa-table th, .aa-table td { padding:6px 8px; text-align:left; border-bottom:1px solid #f1f5f9; }
+  .aa-table th { background:#f7f9fc; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#475569; }
+  .placeholder { padding:12px; text-align:center; color:#6b7280; background:#f7f9fc; border:1px dashed #cbd5e1; border-radius:6px; font-size:13px; }
+  .btn { padding:6px 10px; border-radius:6px; border:1px solid transparent; font-size:13px; cursor:pointer; font-weight:600; }
+  .btn-primary { background:#00395E; color:#fff; }
+  .btn-link { background:transparent; color:#00395E; border:1px solid #e1e6ec; }
+</style>
+
+<script>
+  (function () {
+    function ping(action, payload) {
+      console.log('[preview] adp_auditlog ←', action, payload);
+      alert('Preview: ' + action + ' invoked.\nLive site calls Flow_' + action + ' and writes adp_auditlog.');
+    }
+    var s = document.getElementById('wpSave');         if (s) s.addEventListener('click', function () { ping('SaveWorkpaper', { id: '{{ wp.adp_workpaperid }}' }); });
+    var sb = document.getElementById('wpSubmit');      if (sb) sb.addEventListener('click', function () { ping('SubmitForReview', { id: '{{ wp.adp_workpaperid }}' }); });
+    var a = document.getElementById('wpApprove');      if (a) a.addEventListener('click', function () { ping('SignOff', { id: '{{ wp.adp_workpaperid }}', decision: 'Approve' }); });
+    var r = document.getElementById('wpReopen');       if (r) r.addEventListener('click', function () {
+      var c = prompt('Reason for reopening?'); if (!c) return;
+      ping('SignOff', { id: '{{ wp.adp_workpaperid }}', decision: 'Reopen', comments: c });
+    });
+    var ae = document.getElementById('wpAddEvidence'); if (ae) ae.addEventListener('click', function () { ping('AttachEvidence', { id: '{{ wp.adp_workpaperid }}' }); });
+    var gs = document.getElementById('wpGenSample');   if (gs) gs.addEventListener('click', function () {
+      var m = document.getElementById('wpSampleMethod').value;
+      var n = document.getElementById('wpSampleSize').value;
+      ping('GenerateSample', { id: '{{ wp.adp_workpaperid }}', method: m, size: n });
+    });
+    // Indian numbering format for any [data-rupee] cell.
+    document.querySelectorAll('.adp-workpaper [data-rupee]').forEach(function (el) {
+      var n = parseFloat((el.textContent || '').replace(/[^0-9.-]/g, ''));
+      if (!isNaN(n)) el.textContent = '₹' + n.toLocaleString('en-IN');
+    });
+  })();
+</script>
+
+{% endif %}
+{% include 'adp-shell-close' %}

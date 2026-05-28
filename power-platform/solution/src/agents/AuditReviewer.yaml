@@ -1,0 +1,142 @@
+# Audit Reviewer agent (Copilot Studio)
+#
+# Deployed via the operator console and surfaced on /assistant for Firm Admin
+# and Accountant personas. Reviewer hint: never auto-approves; always proposes
+# a draft conclusion that the human reviewer must accept.
+
+kind: Bot
+name: AuditReviewer
+displayName: Audit Reviewer
+description: >
+  AI assistant that reviews audit workpapers, suggests conclusions, classifies
+  exceptions, and drafts the standardised auditor report sections. Never signs
+  off — review and sign-off remain human gestures captured in adp_review.
+locale: en-IN
+publishingState: Draft
+
+system:
+  instructions: |
+    You are the Audit Reviewer for an Indian accounting firm. You support
+    statutory audits under SA standards, GST audits (Form 9C), Income-Tax
+    audits (44AB / 3CD) and internal-control reviews.
+
+    For every workpaper, you must:
+      1. Read the procedure description, sample table and attached evidence.
+      2. Verify that the evidence covers the assertion(s) tested.
+      3. Identify deviations vs the population.
+      4. Propose a draft conclusion (Pass / Pass with Observation / Fail).
+      5. List any exceptions you noticed that the engine missed.
+
+    You must NEVER:
+      * Mark the workpaper Reviewed yourself — invoke Flow_SubmitForReview
+        only when the preparer asks.
+      * Disclose materials of one client to another.
+      * Invent figures — if data is missing, say so and ask for the source.
+
+    Always cite the source row id (Tally Voucher No / Bank Stmt Ref / 3B box)
+    in your draft.
+
+knowledge:
+  - name: AuditProgramCatalog
+    type: Dataverse
+    table: adp_auditprogram
+  - name: AuditProcedureLibrary
+    type: Dataverse
+    table: adp_auditprocedure
+  - name: ExceptionRules
+    type: JsonFile
+    path: power-platform/catalog/exception-rules.json
+  - name: StatutoryStandards
+    type: SharePoint
+    path: /sites/Smartsoft646/AuditKB/SA-Standards
+  - name: GstActReference
+    type: SharePoint
+    path: /sites/Smartsoft646/AuditKB/GST
+
+topics:
+  - name: ReviewWorkpaper
+    triggerPhrases:
+      - "review workpaper {id}"
+      - "draft conclusion for {id}"
+      - "what should I conclude on {id}"
+    flow:
+      - action: Dataverse.GetRow
+        table: adp_workpaper
+        id: "{id}"
+        output: wp
+      - action: Dataverse.ListRows
+        table: adp_evidence
+        filter: "_adp_workpaperid_value eq '{id}'"
+        output: evidence
+      - action: Dataverse.ListRows
+        table: adp_sample
+        filter: "_adp_workpaperid_value eq '{id}'"
+        output: samples
+      - action: GenerativeAnswer
+        prompt: |
+          Procedure: {wp.adp_procedurename} ({wp.adp_procedurecode})
+          Assertion: {wp.adp_assertion}
+          Risk:      {wp.adp_risklevel}
+          Sample:    {samples}
+          Evidence:  {evidence}
+          Draft a conclusion in 3 sentences. If exceptions are present, list them
+          with the source row id. Use the SA-Standards knowledge for terminology.
+        output: draft
+      - action: SendMessage
+        text: |
+          **Draft conclusion for {wp.adp_procedurecode}**
+          {draft}
+          *I have not changed the workpaper status. Click "Submit for review"
+          on the workpaper page when you accept.*
+
+  - name: ClassifyException
+    triggerPhrases:
+      - "classify exception {id}"
+      - "is {id} a high finding"
+    flow:
+      - action: Dataverse.GetRow
+        table: adp_exception
+        id: "{id}"
+        output: exc
+      - action: GenerativeAnswer
+        prompt: |
+          Rule: {exc.adp_rulecode} — {exc.adp_rulename}
+          Amount: ₹{exc.adp_amount}
+          Source: {exc.adp_source}
+          Description: {exc.adp_description}
+          Classify severity (High / Medium / Low) considering materiality of
+          ₹{exc._engagement_materiality} and propose next step (Investigate /
+          Document / Accept). Cite SA-330 if appropriate.
+
+  - name: DraftReportSection
+    triggerPhrases:
+      - "draft report for {engagementId}"
+      - "summary for partner of {engagementId}"
+    flow:
+      - action: Dataverse.GetRow
+        table: adp_auditengagement
+        id: "{engagementId}"
+        output: eng
+      - action: Dataverse.ListRows
+        table: adp_workpaper
+        filter: "_adp_auditengagementid_value eq '{engagementId}'"
+        output: wps
+      - action: Dataverse.ListRows
+        table: adp_exception
+        filter: "_adp_auditengagementid_value eq '{engagementId}'"
+        output: excs
+      - action: GenerativeAnswer
+        prompt: |
+          Draft the auditor's report (3 sections — Opinion, Basis for Opinion,
+          Key Audit Matters) for {eng.adp_programname} covering
+          {eng.adp_periodfrom}–{eng.adp_periodto}. Workpapers: {wps}. Exceptions:
+          {excs}. Materiality ₹{eng.adp_materiality}. Match SA-700 wording.
+
+guardrails:
+  noWriteOperations: true   # may only suggest, never mutate
+  redactPII: true
+  citationsRequired: true
+
+entitlementsRequired:
+  - audit.module
+  - audit.ai

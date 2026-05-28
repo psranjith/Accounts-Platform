@@ -1,0 +1,50 @@
+{
+  "$schema": "https://example.com/schemas/adp-audit-programs.json",
+  "description": "Reusable audit program templates seeded into adp_auditprogram. A program is a named bundle of procedures with a default materiality % and target framework.",
+  "programs": [
+    {
+      "id": "ap-statutory-fy",
+      "code": "STAT-FY",
+      "name": "Statutory Audit (Financial Year End)",
+      "framework": "Statutory",
+      "applicableIndustry": "All",
+      "defaultMaterialityPct": 1.5,
+      "performanceMaterialityPct": 75,
+      "ownerRole": "Firm Admin",
+      "description": "Full-scope statutory audit covering revenue, purchases, payroll, fixed assets, tax & disclosures."
+    },
+    {
+      "id": "ap-gst-annual",
+      "code": "GST-9C",
+      "name": "GST Annual Audit (GSTR-9C Reconciliation)",
+      "framework": "GST",
+      "applicableIndustry": "All",
+      "defaultMaterialityPct": 0.5,
+      "performanceMaterialityPct": 70,
+      "ownerRole": "Accountant",
+      "description": "Reconcile audited books with GSTR-9 outward & inward supplies, ITC ledger and rate-wise GSTR-3B."
+    },
+    {
+      "id": "ap-internal-controls",
+      "code": "ICR",
+      "name": "Internal Controls Review",
+      "framework": "Internal",
+      "applicableIndustry": "All",
+      "defaultMaterialityPct": 2.0,
+      "performanceMaterialityPct": 60,
+      "ownerRole": "Accountant",
+      "description": "Continuous-controls assessment covering segregation of duties, journal entry hygiene, bank reconciliations and approval workflows."
+    },
+    {
+      "id": "ap-tax-audit-44ab",
+      "code": "TAX-44AB",
+      "name": "Income-Tax Audit (Section 44AB)",
+      "framework": "Statutory",
+      "applicableIndustry": "All",
+      "defaultMaterialityPct": 1.0,
+      "performanceMaterialityPct": 75,
+      "ownerRole": "Firm Admin",
+      "description": "Form 3CA/3CB + 3CD reporting: turnover validation, payments to specified persons, depreciation, disallowances under 40A(3)/43B."
+    }
+  ]
+}
