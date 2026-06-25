@@ -12,6 +12,7 @@ jobs:
   export-from-dev:
     runs-on: windows-latest
     environment: dev
+    if: ${{ vars.PP_DEV_URL != '' && vars.PP_APP_ID != '' }}
     steps:
       - uses: actions/checkout@v4
 
