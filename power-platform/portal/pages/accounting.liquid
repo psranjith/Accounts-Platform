@@ -1,0 +1,904 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'accounting' %}
+{% assign page_title = 'Accounting Activities' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Service Delivery|/service-delivery · Accounting' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Accounting Activities & Compliance
+  ----------------------------------
+  Surfaces the day-to-day bookkeeping work the firm performs for each client:
+  vouchers/entries (purchase, sales, receipts, payments, bank, journal),
+  reconciliations (bank + GST purchase vs 2B), variance analysis & documents,
+  GST (GSTR-2B report + variance vs books), TDS / 26AS / AIS and payroll
+  (incl. ESI & PF).
+
+  A visual process-flow stepper at the top of the Entries tab shows which
+  stages are unlocked. Gating is informational only in the preview: a later
+  stage is "locked" with a reason when its prerequisites have no posted data
+  (e.g. GST stays locked until purchase & sales entries are posted).
+
+  Role-aware:
+   - Accountant : portfolio across all client companies
+   - Firm Admin : own company only
+   - Operator / Client : page not available (handled below)
+
+  Backing Dataverse tables (to be created in solution/src):
+   - adp_voucher          : purchase / sales / receipt / payment / bank / journal entry
+   - adp_bankrecon        : bank reconciliation lines (book vs bank)
+   - adp_gst2b            : GSTR-2B inward supply lines + match status vs books
+   - adp_gstvariance      : per-section GST variance (ITC books vs 2B, 3B vs books)
+   - adp_variancedoc      : supporting documents attached to variances
+   - adp_tds              : TDS deduction register
+   - adp_form26as         : Form 26AS entries (tax credit statement)
+   - adp_ais              : Annual Information Statement entries
+   - adp_payroll          : payroll run rows
+   - adp_esi / adp_pf     : ESI & PF contribution registers
+
+  The preview harness stubs these tables; see preview/preview.js.
+{% endcomment %}
+
+{% assign is_operator   = false %}
+{% assign is_admin      = false %}
+{% assign is_accountant = false %}
+{% if adp_personagroup == 'operator'   %}{% assign is_operator   = true %}{% endif %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_admin      = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% assign can_view = false %}
+{% if is_accountant or is_admin %}{% assign can_view = true %}{% endif %}
+
+{% unless can_view %}
+  <section class="acc-page">
+    <div class="placeholder">
+      <strong>Accounting Activities is an internal delivery workspace.</strong><br/>
+      It is available to <em>Accountants</em> and <em>Firm Admins</em>. Switch the role selector to preview it.
+    </div>
+  </section>
+{% else %}
+
+{% comment %} ==================== Data ==================== {% endcomment %}
+{% fetchxml vouchers_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="300">
+  <entity name="adp_voucher">
+    <attribute name="adp_voucherid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_vouchertype" />
+    <attribute name="adp_date" />
+    <attribute name="adp_party" />
+    <attribute name="adp_reference" />
+    <attribute name="adp_amount" />
+    <attribute name="adp_status" />
+    <attribute name="adp_narration" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+    <order attribute="adp_date" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign vouchers = vouchers_query.results.entities %}
+
+{% fetchxml bankrecon_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_bankrecon">
+    <attribute name="adp_bankreconid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_date" />
+    <attribute name="adp_particulars" />
+    <attribute name="adp_bookamount" />
+    <attribute name="adp_bankamount" />
+    <attribute name="adp_status" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+    <order attribute="adp_date" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign bankrecon = bankrecon_query.results.entities %}
+
+{% fetchxml gst2b_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_gst2b">
+    <attribute name="adp_gst2bid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_gstin" />
+    <attribute name="adp_supplier" />
+    <attribute name="adp_invoiceno" />
+    <attribute name="adp_invoicedate" />
+    <attribute name="adp_taxable" />
+    <attribute name="adp_igst" />
+    <attribute name="adp_cgst" />
+    <attribute name="adp_sgst" />
+    <attribute name="adp_matchstatus" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+    <order attribute="adp_invoicedate" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign gst2b = gst2b_query.results.entities %}
+
+{% fetchxml gstvar_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+  <entity name="adp_gstvariance">
+    <attribute name="adp_gstvarianceid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_section" />
+    <attribute name="adp_period" />
+    <attribute name="adp_booksamount" />
+    <attribute name="adp_portalamount" />
+    <attribute name="adp_variance" />
+    <attribute name="adp_status" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign gstvar = gstvar_query.results.entities %}
+
+{% fetchxml vardoc_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+  <entity name="adp_variancedoc">
+    <attribute name="adp_variancedocid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_name" />
+    <attribute name="adp_kind" />
+    <attribute name="adp_linkedto" />
+    <attribute name="adp_uploadedon" />
+    <attribute name="adp_status" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+    <order attribute="adp_uploadedon" descending="true" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign vardocs = vardoc_query.results.entities %}
+
+{% fetchxml tds_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_tds">
+    <attribute name="adp_tdsid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_section" />
+    <attribute name="adp_deductee" />
+    <attribute name="adp_pan" />
+    <attribute name="adp_amountpaid" />
+    <attribute name="adp_rate" />
+    <attribute name="adp_tdsamount" />
+    <attribute name="adp_status" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign tds = tds_query.results.entities %}
+
+{% fetchxml form26as_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_form26as">
+    <attribute name="adp_form26asid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_deductor" />
+    <attribute name="adp_tan" />
+    <attribute name="adp_section" />
+    <attribute name="adp_amount" />
+    <attribute name="adp_taxcredit" />
+    <attribute name="adp_status" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign form26as = form26as_query.results.entities %}
+
+{% fetchxml ais_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_ais">
+    <attribute name="adp_aisid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_category" />
+    <attribute name="adp_source" />
+    <attribute name="adp_amount" />
+    <attribute name="adp_status" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign ais = ais_query.results.entities %}
+
+{% fetchxml payroll_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_payroll">
+    <attribute name="adp_payrollid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_employee" />
+    <attribute name="adp_gross" />
+    <attribute name="adp_deductions" />
+    <attribute name="adp_net" />
+    <attribute name="adp_status" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign payroll = payroll_query.results.entities %}
+
+{% fetchxml esi_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_esi">
+    <attribute name="adp_esiid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_employee" />
+    <attribute name="adp_wages" />
+    <attribute name="adp_eecontrib" />
+    <attribute name="adp_ercontrib" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign esi = esi_query.results.entities %}
+
+{% fetchxml pf_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_pf">
+    <attribute name="adp_pfid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_employee" />
+    <attribute name="adp_basic" />
+    <attribute name="adp_eepf" />
+    <attribute name="adp_erpf" />
+    <attribute name="adp_eps" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign pf = pf_query.results.entities %}
+
+{% comment %} ==================== Counts driving the process-flow stepper ==================== {% endcomment %}
+{% assign n_purchase = 0 %}{% assign n_sales = 0 %}{% assign n_receipt = 0 %}{% assign n_payment = 0 %}{% assign n_bank = 0 %}{% assign n_journal = 0 %}
+{% for v in vouchers %}
+  {% if v.adp_status.label == 'Posted' %}
+    {% case v.adp_vouchertype.label %}
+      {% when 'Purchase' %}{% assign n_purchase = n_purchase | plus: 1 %}
+      {% when 'Sales' %}{% assign n_sales = n_sales | plus: 1 %}
+      {% when 'Receipt' %}{% assign n_receipt = n_receipt | plus: 1 %}
+      {% when 'Payment' %}{% assign n_payment = n_payment | plus: 1 %}
+      {% when 'Bank' %}{% assign n_bank = n_bank | plus: 1 %}
+      {% when 'Journal' %}{% assign n_journal = n_journal | plus: 1 %}
+    {% endcase %}
+  {% endif %}
+{% endfor %}
+
+{% assign gst_unlocked = false %}{% if n_purchase > 0 and n_sales > 0 %}{% assign gst_unlocked = true %}{% endif %}
+{% assign bank_unlocked = false %}{% if n_bank > 0 %}{% assign bank_unlocked = true %}{% endif %}
+{% assign rp_unlocked = false %}{% if n_purchase > 0 or n_sales > 0 %}{% assign rp_unlocked = true %}{% endif %}
+{% assign tds_unlocked = gst_unlocked %}
+{% assign payroll_unlocked = false %}{% if n_journal > 0 %}{% assign payroll_unlocked = true %}{% endif %}
+
+{% comment %} ---- Close-run context (deep-linked from Monthly Close) ---- {% endcomment %}
+{% assign acc_closerun = request.params.closerun | default: '' %}
+{% assign acc_tab = request.params.tab | default: '' %}
+{% assign acc_period = request.params.period | default: '' %}
+{% assign close_ctx = nil %}
+{% if acc_closerun != '' %}
+  {% fetchxml closerun_query %}
+  <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="1">
+    <entity name="adp_closerun">
+      <attribute name="adp_closerunid" />
+      <attribute name="adp_companyid" />
+      <attribute name="adp_period" />
+      <attribute name="adp_processname" />
+      <attribute name="adp_stage" />
+      <attribute name="adp_duedate" />
+      <filter><condition attribute="adp_closerunid" operator="eq" value="{{ acc_closerun }}" /></filter>
+    </entity>
+  </fetch>
+  {% endfetchxml %}
+  {% assign close_ctx = closerun_query.results.entities | first %}
+{% endif %}
+
+<section class="acc-page">
+  {% if close_ctx %}
+  <div class="acc-closerun-banner">
+    <div>
+      <span class="acc-cr-eyebrow">Close run &middot; {{ close_ctx.adp_processname }}</span>
+      <strong>{{ close_ctx.adp_companyid.name }} &middot; {{ close_ctx.adp_period }}</strong>
+      <span class="muted"> &middot; stage {{ close_ctx.adp_stage.label }} &middot; due {{ close_ctx.adp_duedate }}</span>
+    </div>
+    <a class="btn btn-link" href="/monthly-close?closerun={{ close_ctx.adp_closerunid }}">&larr; Back to close run</a>
+  </div>
+  {% endif %}
+  <header class="acc-header">
+    <h2>Accounting Activities &amp; Compliance</h2>
+    <p class="acc-meta">
+      {% if is_accountant %}
+        Signed in as <strong>Accountant</strong> &middot; portfolio across all clients
+      {% else %}
+        Company <strong>{{ adp_companyid | default: '(none)' }}</strong> &middot; Role <strong>{{ adp_role | default: 'Firm Admin' }}</strong>
+      {% endif %}
+    </p>
+  </header>
+
+  <nav class="acc-tabs" role="tablist">
+    <button type="button" class="acc-tab is-active" data-tab="entries"  role="tab" aria-selected="true">Entries</button>
+    <button type="button" class="acc-tab" data-tab="recon"   role="tab" aria-selected="false">Reconciliations</button>
+    <button type="button" class="acc-tab" data-tab="gst"     role="tab" aria-selected="false">GST</button>
+    <button type="button" class="acc-tab" data-tab="tds"     role="tab" aria-selected="false">TDS &amp; Tax</button>
+    <button type="button" class="acc-tab" data-tab="payroll" role="tab" aria-selected="false">Payroll</button>
+  </nav>
+
+  {% comment %} ==================== Tab: Entries ==================== {% endcomment %}
+  <section class="acc-panel is-active" data-panel="entries">
+    <div class="acc-section-head"><h3>Process flow</h3><span class="muted">Stages unlock as prerequisite entries are posted.</span></div>
+    <ol class="acc-stepper">
+      <li class="acc-step is-done">
+        <span class="acc-step-no">1</span>
+        <div class="acc-step-body"><strong>Purchase &amp; Sales</strong><span class="muted">{{ n_purchase }} purchase · {{ n_sales }} sales posted</span></div>
+      </li>
+      <li class="acc-step {% if rp_unlocked %}is-done{% else %}is-locked{% endif %}">
+        <span class="acc-step-no">2</span>
+        <div class="acc-step-body"><strong>Receipts &amp; Payments</strong>
+          {% if rp_unlocked %}<span class="muted">{{ n_receipt }} receipts · {{ n_payment }} payments</span>
+          {% else %}<span class="acc-lock-reason">Post purchase / sales entries first</span>{% endif %}
+        </div>
+      </li>
+      <li class="acc-step {% if bank_unlocked %}is-done{% else %}is-locked{% endif %}">
+        <span class="acc-step-no">3</span>
+        <div class="acc-step-body"><strong>Bank entries &amp; reconciliation</strong>
+          {% if bank_unlocked %}<span class="muted">{{ n_bank }} bank entries</span>
+          {% else %}<span class="acc-lock-reason">Import bank entries to unlock reconciliation</span>{% endif %}
+        </div>
+      </li>
+      <li class="acc-step {% if n_journal > 0 %}is-done{% else %}is-active{% endif %}">
+        <span class="acc-step-no">4</span>
+        <div class="acc-step-body"><strong>Journal entries</strong><span class="muted">{{ n_journal }} journals posted</span></div>
+      </li>
+      <li class="acc-step {% if gst_unlocked %}is-active{% else %}is-locked{% endif %}">
+        <span class="acc-step-no">5</span>
+        <div class="acc-step-body"><strong>GST &amp; 2B reconciliation</strong>
+          {% if gst_unlocked %}<span class="muted">Ready · purchase &amp; sales available</span>
+          {% else %}<span class="acc-lock-reason">Needs both purchase &amp; sales entries</span>{% endif %}
+        </div>
+      </li>
+      <li class="acc-step {% if tds_unlocked %}is-active{% else %}is-locked{% endif %}">
+        <span class="acc-step-no">6</span>
+        <div class="acc-step-body"><strong>TDS</strong>
+          {% if tds_unlocked %}<span class="muted">Ready</span>
+          {% else %}<span class="acc-lock-reason">Complete GST stage first</span>{% endif %}
+        </div>
+      </li>
+      <li class="acc-step {% if payroll_unlocked %}is-active{% else %}is-locked{% endif %}">
+        <span class="acc-step-no">7</span>
+        <div class="acc-step-body"><strong>Payroll · ESI · PF</strong>
+          {% if payroll_unlocked %}<span class="muted">Ready</span>
+          {% else %}<span class="acc-lock-reason">Post journal entries first</span>{% endif %}
+        </div>
+      </li>
+    </ol>
+
+    <div class="acc-section-head">
+      <h3>Entries / vouchers</h3>
+      <div class="acc-filterbar">
+        <select id="accVoucherType" aria-label="Voucher type">
+          <option value="">All types</option>
+          <option>Purchase</option>
+          <option>Sales</option>
+          <option>Receipt</option>
+          <option>Payment</option>
+          <option>Bank</option>
+          <option>Journal</option>
+        </select>
+        <input type="search" id="accVoucherFilter" placeholder="Filter by party, reference..." />
+      </div>
+    </div>
+    {% if vouchers.size == 0 %}
+      <div class="placeholder">No entries yet.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table acc-table" id="accVoucherTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            {% if is_accountant %}<th>Company</th>{% endif %}
+            <th>Type</th>
+            <th>Party / Account</th>
+            <th>Reference</th>
+            <th class="num">Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vouchers %}
+          <tr data-type="{{ v.adp_vouchertype.label }}" data-search="{{ v.adp_party | downcase }} {{ v.adp_reference | downcase }}">
+            <td>{{ v.adp_date }}</td>
+            {% if is_accountant %}<td>{{ v.adp_companyid.name | default: v.adp_companyid.id }}</td>{% endif %}
+            <td><span class="badge badge-stage">{{ v.adp_vouchertype.label }}</span></td>
+            <td>{{ v.adp_party }}<div class="muted acc-narr">{{ v.adp_narration }}</div></td>
+            <td>{{ v.adp_reference }}</td>
+            <td class="num">{{ v.adp_amount }}</td>
+            <td><span class="badge badge-{{ v.adp_status.label | downcase | replace: ' ', '-' }}">{{ v.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  {% comment %} ==================== Tab: Reconciliations ==================== {% endcomment %}
+  <section class="acc-panel" data-panel="recon">
+    <div class="acc-section-head"><h3>Bank reconciliation</h3><span class="muted">Book balance vs bank statement</span></div>
+    {% if bankrecon.size == 0 %}
+      <div class="placeholder">Nothing to reconcile.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Date</th>{% if is_accountant %}<th>Company</th>{% endif %}<th>Particulars</th><th class="num">Books</th><th class="num">Bank</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for r in bankrecon %}
+          <tr>
+            <td>{{ r.adp_date }}</td>
+            {% if is_accountant %}<td>{{ r.adp_companyid.name | default: r.adp_companyid.id }}</td>{% endif %}
+            <td>{{ r.adp_particulars }}</td>
+            <td class="num">{{ r.adp_bookamount }}</td>
+            <td class="num">{{ r.adp_bankamount }}</td>
+            <td><span class="badge badge-{{ r.adp_status.label | downcase | replace: ' ', '-' }}">{{ r.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acc-section-head"><h3>Variance analysis</h3><span class="muted">Books vs portal — across GST, TDS, bank</span></div>
+    {% if gstvar.size == 0 %}
+      <div class="placeholder">No variances detected.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Section</th>{% if is_accountant %}<th>Company</th>{% endif %}<th>Period</th><th class="num">As per books</th><th class="num">As per portal</th><th class="num">Variance</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for g in gstvar %}
+          <tr>
+            <td>{{ g.adp_section }}</td>
+            {% if is_accountant %}<td>{{ g.adp_companyid.name | default: g.adp_companyid.id }}</td>{% endif %}
+            <td>{{ g.adp_period }}</td>
+            <td class="num">{{ g.adp_booksamount }}</td>
+            <td class="num">{{ g.adp_portalamount }}</td>
+            <td class="num">{{ g.adp_variance }}</td>
+            <td><span class="badge badge-{{ g.adp_status.label | downcase | replace: ' ', '-' }}">{{ g.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acc-section-head"><h3>Variance documents</h3><span class="muted">Evidence attached to reconciling items</span></div>
+    {% if vardocs.size == 0 %}
+      <div class="placeholder">No documents.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Document</th><th>Kind</th><th>Linked to</th><th>Uploaded</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for d in vardocs %}
+          <tr>
+            <td>{{ d.adp_name }}</td>
+            <td>{{ d.adp_kind }}</td>
+            <td>{{ d.adp_linkedto }}</td>
+            <td>{{ d.adp_uploadedon }}</td>
+            <td><span class="badge badge-{{ d.adp_status.label | downcase | replace: ' ', '-' }}">{{ d.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  {% comment %} ==================== Tab: GST ==================== {% endcomment %}
+  <section class="acc-panel" data-panel="gst">
+    {% comment %}
+      Import sources for the Purchase vs GSTR-2B reconciliation
+      --------------------------------------------------------
+      The reconciliation needs two inputs each period:
+        1. Purchase register (books)  — the inward/purchase vouchers as recorded
+                                         in the books (Tally / portal entries).
+        2. GSTR-2B (GST portal)       — the auto-drafted ITC statement downloaded
+                                         from the GST portal (JSON or Excel).
+
+      In this preview harness the upload is a UI mock only: choosing files and
+      running the reconciliation reveals the already-stubbed 2B report &
+      variance tables below. No file is actually parsed.
+
+      Production wiring (to build in power-platform):
+        - Purchase register: either sourced from adp_voucher (vouchertype =
+          Purchase) or imported from the Tally extract
+          (power-platform/power-query/tally-extract.pq) into a staging table.
+        - GSTR-2B file: uploaded as a Dataverse file/note (or to SharePoint).
+          A Power Automate flow parses the JSON lines and upserts adp_gst2b
+          rows with their match status.
+        - Reconciliation engine: a flow compares the purchase lines against the
+          2B lines and writes per-section results into adp_gstvariance. This
+          mirrors the existing Flow_RunExceptionEngine pattern in
+          power-platform/flows/.
+        - Real Power Pages upload uses a Dataverse file column or a SharePoint
+          document location; this preview only simulates the interaction.
+    {% endcomment %}
+
+    <div class="acc-section-head"><h3>Import sources for reconciliation</h3><span class="muted">Upload the purchase register &amp; GSTR-2B, then run the match</span></div>
+    <div class="acc-upload-grid">
+      <div class="acc-upload-card" data-upload="purchase">
+        <div class="acc-upload-head">
+          <strong>Purchase register (books)</strong>
+          <span class="badge badge-pending acc-upload-status" data-status>Not uploaded</span>
+        </div>
+        <p class="muted acc-upload-hint">Inward/purchase vouchers as recorded in the books. CSV or Excel exported from Tally / portal entries.</p>
+        <label class="acc-upload-drop">
+          <input type="file" accept=".csv,.xlsx,.xls" hidden />
+          <span class="acc-upload-cta">Choose file</span>
+          <span class="acc-upload-file muted" data-filename>No file selected</span>
+        </label>
+      </div>
+      <div class="acc-upload-card" data-upload="gst2b">
+        <div class="acc-upload-head">
+          <strong>GSTR-2B (GST portal)</strong>
+          <span class="badge badge-pending acc-upload-status" data-status>Not uploaded</span>
+        </div>
+        <p class="muted acc-upload-hint">Auto-drafted ITC statement downloaded from the GST portal. JSON or Excel.</p>
+        <label class="acc-upload-drop">
+          <input type="file" accept=".json,.xlsx,.xls" hidden />
+          <span class="acc-upload-cta">Choose file</span>
+          <span class="acc-upload-file muted" data-filename>No file selected</span>
+        </label>
+      </div>
+    </div>
+    <div class="acc-upload-actions">
+      <button type="button" class="btn btn-primary" id="accRunRecon" disabled>Run 2B reconciliation</button>
+      <span class="muted" id="accReconHint">Upload both the purchase register and GSTR-2B to enable matching.</span>
+    </div>
+    <div class="acc-recon-result" id="accReconResult" hidden role="status"></div>
+
+    {% comment %} ITC summary from 2B vs books {% endcomment %}
+    {% assign itc_2b = 0 %}{% assign matched = 0 %}{% assign mismatch = 0 %}{% assign missing_books = 0 %}{% assign missing_2b = 0 %}
+    {% for x in gst2b %}
+      {% assign itc_2b = itc_2b | plus: x.adp_igst | plus: x.adp_cgst | plus: x.adp_sgst %}
+      {% case x.adp_matchstatus.label %}
+        {% when 'Matched' %}{% assign matched = matched | plus: 1 %}
+        {% when 'Mismatch' %}{% assign mismatch = mismatch | plus: 1 %}
+        {% when 'Missing in Books' %}{% assign missing_books = missing_books | plus: 1 %}
+        {% when 'Missing in 2B' %}{% assign missing_2b = missing_2b | plus: 1 %}
+      {% endcase %}
+    {% endfor %}
+
+    <div class="acc-gst-results is-sample" id="accGstResults">
+    <div class="acc-sample-note" id="accSampleNote">Showing sample data — upload the purchase register &amp; GSTR-2B above and run the match to refresh.</div>
+    <div class="acc-section-head"><h3>GST variance analysis — Purchase vs GSTR-2B</h3><span class="muted">ITC as per 2B downloaded from the GST portal, matched against books</span></div>
+    <div class="kpi-grid acc-kpis">
+      <div class="kpi"><span class="kpi-label">2B lines</span><strong>{{ gst2b.size }}</strong></div>
+      <div class="kpi"><span class="kpi-label">Matched</span><strong>{{ matched }}</strong></div>
+      <div class="kpi kpi-warn"><span class="kpi-label">Mismatch</span><strong>{{ mismatch }}</strong></div>
+      <div class="kpi kpi-warn"><span class="kpi-label">Missing in books</span><strong>{{ missing_books }}</strong></div>
+      <div class="kpi kpi-warn"><span class="kpi-label">Missing in 2B</span><strong>{{ missing_2b }}</strong></div>
+      <div class="kpi"><span class="kpi-label">ITC as per 2B</span><strong>{{ itc_2b }}</strong></div>
+    </div>
+
+    <div class="acc-section-head"><h4 style="margin:0">GSTR-2B report</h4>
+      <div class="acc-filterbar">
+        <select id="accGst2bStatus" aria-label="2B match status">
+          <option value="">All</option>
+          <option>Matched</option>
+          <option>Mismatch</option>
+          <option>Missing in Books</option>
+          <option>Missing in 2B</option>
+        </select>
+      </div>
+    </div>
+    {% if gst2b.size == 0 %}
+      <div class="placeholder">No 2B data imported.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table" id="accGst2bTable">
+        <thead><tr><th>GSTIN</th><th>Supplier</th><th>Invoice</th><th>Date</th><th class="num">Taxable</th><th class="num">IGST</th><th class="num">CGST</th><th class="num">SGST</th><th>Match</th></tr></thead>
+        <tbody>
+          {% for x in gst2b %}
+          <tr data-status="{{ x.adp_matchstatus.label }}">
+            <td class="mono">{{ x.adp_gstin }}</td>
+            <td>{{ x.adp_supplier }}</td>
+            <td>{{ x.adp_invoiceno }}</td>
+            <td>{{ x.adp_invoicedate }}</td>
+            <td class="num">{{ x.adp_taxable }}</td>
+            <td class="num">{{ x.adp_igst }}</td>
+            <td class="num">{{ x.adp_cgst }}</td>
+            <td class="num">{{ x.adp_sgst }}</td>
+            <td><span class="badge badge-{{ x.adp_matchstatus.label | downcase | replace: ' ', '-' }}">{{ x.adp_matchstatus.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acc-section-head"><h4 style="margin:0">Return-level variance (3B / 2B vs books)</h4></div>
+    {% if gstvar.size == 0 %}
+      <div class="placeholder">No return variances.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Section</th><th>Period</th><th class="num">Books</th><th class="num">Portal</th><th class="num">Variance</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for g in gstvar %}
+          <tr>
+            <td>{{ g.adp_section }}</td>
+            <td>{{ g.adp_period }}</td>
+            <td class="num">{{ g.adp_booksamount }}</td>
+            <td class="num">{{ g.adp_portalamount }}</td>
+            <td class="num">{{ g.adp_variance }}</td>
+            <td><span class="badge badge-{{ g.adp_status.label | downcase | replace: ' ', '-' }}">{{ g.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    </div>{% comment %} /acc-gst-results {% endcomment %}
+  </section>
+
+  {% comment %} ==================== Tab: TDS & Tax ==================== {% endcomment %}
+  <section class="acc-panel" data-panel="tds">
+    <div class="acc-section-head"><h3>TDS register</h3><span class="muted">Section-wise deductions</span></div>
+    {% if tds.size == 0 %}
+      <div class="placeholder">No TDS entries.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Section</th>{% if is_accountant %}<th>Company</th>{% endif %}<th>Deductee</th><th>PAN</th><th class="num">Amount paid</th><th class="num">Rate %</th><th class="num">TDS</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for t in tds %}
+          <tr>
+            <td>{{ t.adp_section }}</td>
+            {% if is_accountant %}<td>{{ t.adp_companyid.name | default: t.adp_companyid.id }}</td>{% endif %}
+            <td>{{ t.adp_deductee }}</td>
+            <td class="mono">{{ t.adp_pan }}</td>
+            <td class="num">{{ t.adp_amountpaid }}</td>
+            <td class="num">{{ t.adp_rate }}</td>
+            <td class="num">{{ t.adp_tdsamount }}</td>
+            <td><span class="badge badge-{{ t.adp_status.label | downcase | replace: ' ', '-' }}">{{ t.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acc-section-head"><h3>Form 26AS</h3><span class="muted">Tax credit statement vs books</span></div>
+    {% if form26as.size == 0 %}
+      <div class="placeholder">No 26AS data.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Deductor</th><th>TAN</th><th>Section</th><th class="num">Amount</th><th class="num">Tax credit</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for f in form26as %}
+          <tr>
+            <td>{{ f.adp_deductor }}</td>
+            <td class="mono">{{ f.adp_tan }}</td>
+            <td>{{ f.adp_section }}</td>
+            <td class="num">{{ f.adp_amount }}</td>
+            <td class="num">{{ f.adp_taxcredit }}</td>
+            <td><span class="badge badge-{{ f.adp_status.label | downcase | replace: ' ', '-' }}">{{ f.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acc-section-head"><h3>Annual Information Statement (AIS)</h3><span class="muted">Reported financial transactions</span></div>
+    {% if ais.size == 0 %}
+      <div class="placeholder">No AIS data.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Category</th><th>Source</th><th class="num">Amount</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for a in ais %}
+          <tr>
+            <td>{{ a.adp_category }}</td>
+            <td>{{ a.adp_source }}</td>
+            <td class="num">{{ a.adp_amount }}</td>
+            <td><span class="badge badge-{{ a.adp_status.label | downcase | replace: ' ', '-' }}">{{ a.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  {% comment %} ==================== Tab: Payroll ==================== {% endcomment %}
+  <section class="acc-panel" data-panel="payroll">
+    <div class="acc-section-head"><h3>Payroll run</h3></div>
+    {% if payroll.size == 0 %}
+      <div class="placeholder">No payroll processed.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr>{% if is_accountant %}<th>Company</th>{% endif %}<th>Employee</th><th class="num">Gross</th><th class="num">Deductions</th><th class="num">Net pay</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for p in payroll %}
+          <tr>
+            {% if is_accountant %}<td>{{ p.adp_companyid.name | default: p.adp_companyid.id }}</td>{% endif %}
+            <td>{{ p.adp_employee }}</td>
+            <td class="num">{{ p.adp_gross }}</td>
+            <td class="num">{{ p.adp_deductions }}</td>
+            <td class="num">{{ p.adp_net }}</td>
+            <td><span class="badge badge-{{ p.adp_status.label | downcase | replace: ' ', '-' }}">{{ p.adp_status.label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acc-section-head"><h3>ESI register</h3></div>
+    {% if esi.size == 0 %}
+      <div class="placeholder">No ESI records.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Employee</th><th class="num">Wages</th><th class="num">EE 0.75%</th><th class="num">ER 3.25%</th></tr></thead>
+        <tbody>
+          {% for e in esi %}
+          <tr><td>{{ e.adp_employee }}</td><td class="num">{{ e.adp_wages }}</td><td class="num">{{ e.adp_eecontrib }}</td><td class="num">{{ e.adp_ercontrib }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="acc-section-head"><h3>PF register</h3></div>
+    {% if pf.size == 0 %}
+      <div class="placeholder">No PF records.</div>
+    {% else %}
+    <div class="acc-table-wrap">
+      <table class="table">
+        <thead><tr><th>Employee</th><th class="num">Basic</th><th class="num">EE 12%</th><th class="num">ER 12%</th><th class="num">EPS</th></tr></thead>
+        <tbody>
+          {% for p in pf %}
+          <tr><td>{{ p.adp_employee }}</td><td class="num">{{ p.adp_basic }}</td><td class="num">{{ p.adp_eepf }}</td><td class="num">{{ p.adp_erpf }}</td><td class="num">{{ p.adp_eps }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  <script>
+    (function () {
+      var root = document.querySelector('.acc-page');
+      if (!root) return;
+
+      // ---- Tab switching ----
+      var tabs = root.querySelectorAll('.acc-tab');
+      var panels = root.querySelectorAll('.acc-panel');
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          var name = tab.getAttribute('data-tab');
+          tabs.forEach(function (t) { var on = t === tab; t.classList.toggle('is-active', on); t.setAttribute('aria-selected', on ? 'true' : 'false'); });
+          panels.forEach(function (p) { p.classList.toggle('is-active', p.getAttribute('data-panel') === name); });
+        });
+      });
+
+      // ---- Auto-select tab when deep-linked from Monthly Close (?tab=) ----
+      var initialTab = {{ acc_tab | json }};
+      if (initialTab) {
+        tabs.forEach(function (t) { if (t.getAttribute('data-tab') === initialTab) t.click(); });
+      }
+
+      // ---- Voucher filtering ----
+      var vType = document.getElementById('accVoucherType');
+      var vText = document.getElementById('accVoucherFilter');
+      var vTable = document.getElementById('accVoucherTable');
+      function filterVouchers() {
+        if (!vTable) return;
+        var t = vType ? vType.value : '';
+        var q = vText ? vText.value.trim().toLowerCase() : '';
+        vTable.querySelectorAll('tbody tr').forEach(function (row) {
+          var okType = !t || row.getAttribute('data-type') === t;
+          var okText = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
+          row.style.display = (okType && okText) ? '' : 'none';
+        });
+      }
+      if (vType) vType.addEventListener('change', filterVouchers);
+      if (vText) vText.addEventListener('input', filterVouchers);
+
+      // ---- 2B status filtering ----
+      var bStatus = document.getElementById('accGst2bStatus');
+      var bTable = document.getElementById('accGst2bTable');
+      if (bStatus && bTable) {
+        bStatus.addEventListener('change', function () {
+          var s = bStatus.value;
+          bTable.querySelectorAll('tbody tr').forEach(function (row) {
+            row.style.display = (!s || row.getAttribute('data-status') === s) ? '' : 'none';
+          });
+        });
+      }
+
+      // ---- Purchase + GSTR-2B upload (preview mock) ----
+      var runBtn = document.getElementById('accRunRecon');
+      var reconHint = document.getElementById('accReconHint');
+      var reconResult = document.getElementById('accReconResult');
+      var gstResults = document.getElementById('accGstResults');
+      var uploadCards = root.querySelectorAll('.acc-upload-card');
+      var ready = {};
+
+      function refreshRunState() {
+        var bothReady = ready.purchase && ready.gst2b;
+        if (runBtn) runBtn.disabled = !bothReady;
+        if (reconHint) {
+          reconHint.textContent = bothReady
+            ? 'Ready to match the purchase register against GSTR-2B.'
+            : 'Upload both the purchase register and GSTR-2B to enable matching.';
+        }
+      }
+
+      uploadCards.forEach(function (card) {
+        var key = card.getAttribute('data-upload');
+        var input = card.querySelector('input[type="file"]');
+        var fileLabel = card.querySelector('[data-filename]');
+        var statusBadge = card.querySelector('[data-status]');
+        if (!input) return;
+        input.addEventListener('change', function () {
+          var file = input.files && input.files[0];
+          if (file) {
+            ready[key] = true;
+            if (fileLabel) { fileLabel.textContent = file.name; fileLabel.classList.remove('muted'); }
+            if (statusBadge) { statusBadge.textContent = 'Ready'; statusBadge.className = 'badge badge-ready acc-upload-status'; }
+            card.classList.add('is-ready');
+          } else {
+            ready[key] = false;
+            if (fileLabel) { fileLabel.textContent = 'No file selected'; fileLabel.classList.add('muted'); }
+            if (statusBadge) { statusBadge.textContent = 'Not uploaded'; statusBadge.className = 'badge badge-pending acc-upload-status'; }
+            card.classList.remove('is-ready');
+          }
+          refreshRunState();
+        });
+      });
+
+      if (runBtn) {
+        runBtn.addEventListener('click', function () {
+          var rows = bTable ? bTable.querySelectorAll('tbody tr').length : 0;
+          if (gstResults) gstResults.classList.remove('is-sample');
+          var sampleNote = document.getElementById('accSampleNote');
+          if (sampleNote) sampleNote.hidden = true;
+          if (reconResult) {
+            reconResult.hidden = false;
+            reconResult.textContent = 'Reconciliation complete — purchase register matched against ' + rows +
+              ' GSTR-2B line(s). Review the match status and variance below.';
+          }
+          uploadCards.forEach(function (card) {
+            var statusBadge = card.querySelector('[data-status]');
+            if (statusBadge) { statusBadge.textContent = 'Imported'; statusBadge.className = 'badge badge-imported acc-upload-status'; }
+          });
+        });
+      }
+    })();
+  </script>
+</section>
+{% endunless %}
+
+{% include 'adp-shell-close' %}

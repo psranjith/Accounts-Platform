@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Accounting Reports — Visual Map</title>
+<style>
+:root{
+  --bg:#0a0a0a; --bg-2:#141414; --panel:#1b1b1b; --panel-2:#222;
+  --ink:#ffffff; --muted:#a7adb8; --border:#2e2e2e;
+  --accent:#FFCB05; --accent-2:#ffe066; --accent-ink:#1a1a1a;
+  --op:#7c5cff; --fa:#22b8cf; --ac:#FFCB05; --cl:#51cf66;
+  --font:"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--font); background:var(--bg); color:var(--ink);
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- deck shell ---------- */
+.deck{position:fixed;inset:0}
+.slide{
+  position:absolute;inset:0;display:none;
+  padding:clamp(24px,4.5vh,60px) clamp(32px,6vw,96px) clamp(64px,9vh,84px);
+  flex-direction:column;justify-content:center;overflow-y:auto;
+  animation:fade .45s ease;
+  background:radial-gradient(1200px 600px at 80% -10%,rgba(255,203,5,.10),transparent 60%),var(--bg);
+}
+.slide.active{display:flex}
+@keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.eyebrow{font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:14px}
+h1{font-size:clamp(2.2rem,5.2vw,4.2rem);line-height:1.05;letter-spacing:-.02em;margin:0 0 .35em}
+h2{font-size:clamp(1.5rem,3.4vw,2.5rem);line-height:1.1;letter-spacing:-.01em;margin:0 0 .6em}
+.lead{font-size:clamp(1rem,1.6vw,1.3rem);color:var(--muted);max-width:60ch;margin:0}
+.kbd{font-family:var(--mono);background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:.85em}
+
+/* ---------- progress + nav ---------- */
+.topbar{position:fixed;top:0;left:0;right:0;height:4px;background:var(--bg-2);z-index:30}
+.bar{height:100%;background:var(--accent);width:0;transition:width .35s ease}
+.chrome{position:fixed;bottom:18px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+  padding:0 clamp(20px,5vw,48px);z-index:30;font-size:.82rem;color:var(--muted)}
+.brandmark{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--ink)}
+.dot{width:11px;height:11px;border-radius:3px;background:var(--accent)}
+.controls{display:flex;gap:8px}
+.controls button{
+  font:inherit;font-size:.82rem;color:var(--ink);background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;padding:7px 12px;cursor:pointer;transition:.12s}
+.controls button:hover{background:var(--panel-2);border-color:#444}
+.counter{font-family:var(--mono)}
+
+/* ---------- layout helpers ---------- */
+.grid{display:grid;gap:clamp(12px,1.6vw,20px)}
+.g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:clamp(16px,1.8vw,24px)}
+.card h3{margin:0 0 .35em;font-size:1.12rem}
+.card p{margin:0;color:var(--muted);font-size:.92rem;line-height:1.5}
+.tag{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;text-transform:uppercase}
+
+/* ---------- architecture stack ---------- */
+.stack{display:flex;flex-direction:column;gap:6px;max-width:1000px;margin:0 auto;width:100%}
+.layer{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--border);
+  border-left:4px solid var(--accent);border-radius:10px;padding:11px 18px}
+.layer .n{font-family:var(--mono);color:var(--accent);font-weight:700;min-width:24px}
+.layer .t{font-weight:700;min-width:190px}
+.layer .d{color:var(--muted);font-size:.9rem}
+.flowrow{display:flex;gap:10px;flex-wrap:wrap}
+.chip{background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.82rem;color:var(--muted)}
+.arrowdown{align-self:center;color:var(--accent);font-size:.85rem;opacity:.6;line-height:1}
+
+/* ---------- personas ---------- */
+.persona{border-top:4px solid var(--c);position:relative;overflow:hidden}
+.persona .scope{font-family:var(--mono);font-size:.78rem;color:var(--c);font-weight:700}
+.persona .av{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font-weight:800;color:#0a0a0a;font-size:1.1rem;margin-bottom:12px}
+
+/* ---------- journey ---------- */
+.journey{display:flex;flex-direction:column;gap:8px}
+.step{display:grid;grid-template-columns:46px 150px 1fr;align-items:center;gap:14px;
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 16px}
+.step .num{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#0a0a0a;font-weight:800;display:grid;place-items:center}
+.step .who{font-weight:700;font-size:.9rem}
+.step .what{color:var(--muted);font-size:.88rem}
+.who.op{color:var(--op)} .who.fa{color:var(--fa)} .who.ac{color:var(--ac)} .who.cl{color:var(--cl)}
+
+/* ---------- stats ---------- */
+.stat{text-align:center;padding:clamp(16px,2vw,28px)}
+.stat .num{font-size:clamp(2.2rem,5vw,3.6rem);font-weight:800;color:var(--accent);line-height:1}
+.stat .lbl{color:var(--muted);font-size:.9rem;margin-top:8px}
+
+/* ---------- page map ---------- */
+.pm{display:grid;gap:10px}
+.pmcol h4{margin:0 0 8px;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.pill{display:block;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:7px;font-size:.86rem}
+.pill small{color:var(--muted);display:block;font-size:.76rem}
+
+.center{align-items:center;text-align:center}
+.cta{display:inline-flex;gap:10px;align-items:center;background:var(--accent);color:#0a0a0a;font-weight:800;
+  padding:14px 26px;border-radius:10px;font-size:1.05rem;margin-top:20px}
+ul.clean{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+ul.clean li{padding-left:26px;position:relative;color:var(--muted)}
+ul.clean li::before{content:"";position:absolute;left:0;top:.5em;width:10px;height:10px;background:var(--accent);border-radius:3px}
+ul.clean li b{color:var(--ink)}
+.hint{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);font-size:.78rem;color:var(--muted);z-index:30}
+@media (max-width:760px){.g2,.g3,.g4{grid-template-columns:1fr}.layer .t{min-width:auto}.step{grid-template-columns:40px 1fr}.step .what{display:none}}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="bar" id="bar"></div></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1. TITLE -->
+  <section class="slide active center">
+    <div class="eyebrow">Smartsoft · 29 years of trusted IT</div>
+    <h1>Smart Accounting<br/>Reports</h1>
+    <p class="lead">The audit &amp; accounts delivery platform on Microsoft 365.<br/>One portal. Four roles. Every client.</p>
+    <div class="cta">Visual platform map →</div>
+  </section>
+
+  <!-- 2. ONE PICTURE -->
+  <section class="slide">
+    <div class="eyebrow">The platform in one picture</div>
+    <h2>Audit. Accounts. Tally. One Microsoft 365 portal.</h2>
+    <div class="grid g4" style="margin-top:8px">
+      <div class="stat card"><div class="num">25</div><div class="lbl">portal pages</div></div>
+      <div class="stat card"><div class="num">4</div><div class="lbl">personas, one login</div></div>
+      <div class="stat card"><div class="num">13</div><div class="lbl">Power Automate flows</div></div>
+      <div class="stat card"><div class="num">1</div><div class="lbl">codebase</div></div>
+    </div>
+    <p class="lead" style="margin-top:24px">Power Pages + Dataverse + Power Automate + Power BI + Copilot Studio, with one Azure Function for secure Tally — no React SPA, no third-party auth, all on Entra ID.</p>
+  </section>
+
+  <!-- 3. ARCHITECTURE LAYER MAP -->
+  <section class="slide">
+    <div class="eyebrow">Architecture · layer map</div>
+    <h2>Ten layers, top to bottom</h2>
+    <div class="stack">
+      <div class="layer"><span class="n">9</span><span class="t">Entra ID</span><span class="d">Sole identity provider — firm members + B2B client guests</span></div>
+      <div class="arrowdown">▼</div>
+      <div class="layer"><span class="n">1</span><span class="t">Power Pages portal</span><span class="d">25 Liquid pages + 3 shared shell templates · persona-aware nav · FetchXML binding</span></div>
+      <div class="arrowdown">▼</div>
+      <div class="layer" style="border-left-color:var(--fa)"><span class="n">2–8</span><span class="t">Data &amp; services</span>
+        <span class="flowrow">
+          <span class="chip">Dataverse · ~13 tables</span>
+          <span class="chip">Power BI · embedded + RLS</span>
+          <span class="chip">Copilot Studio</span>
+          <span class="chip">Catalog JSON</span>
+        </span>
+      </div>
+      <div class="arrowdown">▼</div>
+      <div class="layer" style="border-left-color:var(--cl)"><span class="n">3</span><span class="t">Power Automate</span><span class="d">13 cloud flows — business logic lives here, not in client code</span></div>
+      <div class="arrowdown">▼</div>
+      <div class="layer" style="border-left-color:var(--op)"><span class="n">6</span><span class="t">Edge services</span>
+        <span class="flowrow">
+          <span class="chip">SharePoint · documents</span>
+          <span class="chip">Azure Function · signed RDP</span>
+          <span class="chip">Tally RDS gateway</span>
+          <span class="chip">Email / WhatsApp / Telegram</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. PERSONAS -->
+  <section class="slide">
+    <div class="eyebrow">Four roles · same platform</div>
+    <h2>Everyone sees only what they should</h2>
+    <div class="grid g4">
+      <div class="card persona" style="--c:var(--op)">
+        <div class="av" style="background:var(--op)">OP</div>
+        <h3>Smartsoft Operator</h3>
+        <div class="scope">scope: all firms</div>
+        <p>Onboard firms, manage catalog &amp; connectors, monitor platform health.</p>
+      </div>
+      <div class="card persona" style="--c:var(--fa)">
+        <div class="av" style="background:var(--fa)">FA</div>
+        <h3>Firm Admin</h3>
+        <div class="scope">scope: own firm</div>
+        <p>Onboard clients, invite users, assign staff, start &amp; sign off audits, billing.</p>
+      </div>
+      <div class="card persona" style="--c:var(--ac)">
+        <div class="av" style="background:var(--ac)">AC</div>
+        <h3>Accountant</h3>
+        <div class="scope">scope: assigned</div>
+        <p>Capture documents, execute workpapers, clear exceptions, client requests.</p>
+      </div>
+      <div class="card persona" style="--c:var(--cl)">
+        <div class="av" style="background:var(--cl)">CL</div>
+        <h3>Client</h3>
+        <div class="scope">scope: own company</div>
+        <p>View audit status &amp; dashboards, upload requested docs, manage subscription.</p>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:20px">Enforced in four layers — Liquid UI gating · FetchXML filters · Power Pages table permissions · Power BI row-level security.</p>
+  </section>
+
+  <!-- 5. PAGE MAP -->
+  <section class="slide">
+    <div class="eyebrow">Page map · 25 pages</div>
+    <h2>Grouped by what they do</h2>
+    <div class="grid g4 pm">
+      <div class="pmcol">
+        <h4>Primary hubs</h4>
+        <span class="pill">Dashboard <small>role-aware My Day</small></span>
+        <span class="pill">Clients <small>roster + onboarding</small></span>
+        <span class="pill">Inbox <small>data capture queue</small></span>
+        <span class="pill">Service Delivery <small>workload Kanban</small></span>
+      </div>
+      <div class="pmcol">
+        <h4>Audit core</h4>
+        <span class="pill">Audit hub <small>engagements + KPIs</small></span>
+        <span class="pill">Engagement <small>6-tab detail</small></span>
+        <span class="pill">Workpaper <small>sample · evidence · sign-off</small></span>
+        <span class="pill">Exceptions <small>16-rule queue</small></span>
+        <span class="pill">Client requests <small>PBC uploads</small></span>
+      </div>
+      <div class="pmcol">
+        <h4>Insight &amp; AI</h4>
+        <span class="pill">Insights <small>Power BI + RLS</small></span>
+        <span class="pill">Agents <small>Copilot Studio</small></span>
+        <span class="pill">Documents <small>SharePoint browser</small></span>
+        <span class="pill">Teams <small>M365 integration</small></span>
+      </div>
+      <div class="pmcol">
+        <h4>Admin &amp; money</h4>
+        <span class="pill">Operator console <small>Smartsoft only</small></span>
+        <span class="pill">Billing <small>bundles + plans</small></span>
+        <span class="pill">Launch Tally <small>signed RDP</small></span>
+        <span class="pill">Monthly Close <small>BPO close runs</small></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. JOURNEY -->
+  <section class="slide">
+    <div class="eyebrow">End-to-end journey</div>
+    <h2>One engagement, start to finish</h2>
+    <div class="journey">
+      <div class="step"><span class="num">1</span><span class="who op">Operator</span><span class="what">Onboard the firm · enable bundles · verify connectors</span></div>
+      <div class="step"><span class="num">2</span><span class="who fa">Firm Admin</span><span class="what">Onboard client · invite users · assign accountant</span></div>
+      <div class="step"><span class="num">3</span><span class="who ac">Accountant</span><span class="what">Inbox — documents auto-filed from WhatsApp / email / Telegram</span></div>
+      <div class="step"><span class="num">4</span><span class="who fa">Firm Admin</span><span class="what">Service delivery — balance workload, schedule the audit</span></div>
+      <div class="step"><span class="num">5</span><span class="who ac">Accountant</span><span class="what">Fieldwork — sample, evidence, conclusion, submit workpaper</span></div>
+      <div class="step"><span class="num">6</span><span class="who ac">Accountant</span><span class="what">Exceptions — 16 rules run nightly on Tally / bank / GST / payroll</span></div>
+      <div class="step"><span class="num">7</span><span class="who cl">Client</span><span class="what">Upload PBC docs — portal or WhatsApp</span></div>
+      <div class="step"><span class="num">8</span><span class="who fa">Manager &amp; Partner</span><span class="what">Review &amp; sign off — immutable audit trail</span></div>
+      <div class="step"><span class="num">9</span><span class="who fa">Partner</span><span class="what">Generate audit report — Word + PDF, mark Issued</span></div>
+    </div>
+  </section>
+
+  <!-- 7. CATALOG NUMBERS -->
+  <section class="slide">
+    <div class="eyebrow">Built-in catalog</div>
+    <h2>Depth that ships on day one</h2>
+    <div class="grid g4">
+      <div class="stat card"><div class="num">4</div><div class="lbl">audit programs<br/>Statutory · GST 9C · IC · 44AB</div></div>
+      <div class="stat card"><div class="num">56</div><div class="lbl">audit procedures<br/>assertion + risk mapped</div></div>
+      <div class="stat card"><div class="num">16</div><div class="lbl">exception rules<br/>nightly engine</div></div>
+      <div class="stat card"><div class="num">5</div><div class="lbl">pricing bundles<br/>₹999 – ₹3,499 / mo</div></div>
+    </div>
+    <p class="lead" style="margin-top:24px">Same programs, same rules, same sign-off trail across every client — the consistency that scales a practice.</p>
+  </section>
+
+  <!-- 8. WHY -->
+  <section class="slide">
+    <div class="eyebrow">Why it wins</div>
+    <h2>The modern stack, no new habits</h2>
+    <div class="grid g2">
+      <ul class="clean">
+        <li><b>Secure Tally on cloud</b> — signed RDP, MFA, daily encrypted backup. No VPN, no upgrade.</li>
+        <li><b>One inbox for documents</b> — WhatsApp + email + Telegram → SharePoint, auto-tagged.</li>
+        <li><b>Audit workpapers automated</b> — 4 programs × 56 procedures, auto-generated checklists.</li>
+        <li><b>Exception engine on real data</b> — 16 rules, nightly, on Tally + bank + GST + payroll.</li>
+      </ul>
+      <ul class="clean">
+        <li><b>Multi-level sign-off</b> — Preparer → Manager → Partner, immutable trail, one-click PDF.</li>
+        <li><b>Power BI per company</b> — row-level security, owner phone view, firm portfolio view.</li>
+        <li><b>Copilot where work happens</b> — Audit Reviewer Q&amp;A + M365 built-ins.</li>
+        <li><b>On Microsoft 365 you trust</b> — Entra ID SSO, SharePoint, Teams, Power Pages.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 9. CLOSE -->
+  <section class="slide center">
+    <div class="eyebrow">Start where you are</div>
+    <h1>Pilot one engagement.<br/>Free. End to end.</h1>
+    <p class="lead">₹999 – ₹3,499 / month bundles · 15% off annual · 1–3 weeks to live for a single firm.</p>
+    <div class="cta">Book the pilot →</div>
+    <p class="lead" style="margin-top:18px;font-size:.95rem">sales@smartsoft.example · smartsoft.example/demo</p>
+  </section>
+
+</div>
+
+<div class="hint" id="hint">Use <span class="kbd">←</span> <span class="kbd">→</span> or <span class="kbd">Space</span> · <span class="kbd">F</span> fullscreen</div>
+
+<div class="chrome">
+  <div class="brandmark"><span class="dot"></span> Smart Accounting Reports</div>
+  <div class="controls">
+    <button id="prev">‹ Prev</button>
+    <span class="counter"><span id="cur">1</span> / <span id="total">9</span></span>
+    <button id="next">Next ›</button>
+    <button id="full">⛶</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const slides=[...document.querySelectorAll('.slide')];
+  const total=slides.length;
+  let i=0;
+  const bar=document.getElementById('bar');
+  const cur=document.getElementById('cur');
+  document.getElementById('total').textContent=total;
+  function show(n){
+    i=Math.max(0,Math.min(total-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    bar.style.width=((i+1)/total*100)+'%';
+    cur.textContent=i+1;
+    location.hash=i+1;
+  }
+  function next(){show(i+1)} function prev(){show(i-1)}
+  document.getElementById('next').onclick=next;
+  document.getElementById('prev').onclick=prev;
+  document.getElementById('full').onclick=()=>{
+    if(!document.fullscreenElement)document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  };
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();next()}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();prev()}
+    else if(e.key==='Home')show(0)
+    else if(e.key==='End')show(total-1)
+    else if(e.key==='f'||e.key==='F')document.getElementById('full').click();
+  });
+  // swipe
+  let x0=null;
+  addEventListener('touchstart',e=>x0=e.touches[0].clientX,{passive:true});
+  addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>50)dx<0?next():prev();x0=null},{passive:true});
+  // hide hint after a bit
+  setTimeout(()=>{const h=document.getElementById('hint');if(h)h.style.opacity='0';},4500);
+  const start=parseInt(location.hash.replace('#',''))||1;
+  show(start-1);
+})();
+</script>
+</body>
+</html>

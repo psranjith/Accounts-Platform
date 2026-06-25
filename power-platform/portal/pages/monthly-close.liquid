@@ -1,0 +1,532 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'monthly-close' %}
+{% assign page_title = 'Monthly Close (BPO)' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Service Delivery|/service-delivery · Monthly Close' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Monthly Close (BPO) — orchestration layer
+  -----------------------------------------
+  Ties Service Delivery (scheduling, engagements) to the Accounting workspace
+  (the actual bookkeeping work) for a small / medium business accounting BPO.
+
+  A "close run" is one productised accounting service (GST return, monthly book
+  closure, payroll, bank reconciliation) for one client + period. It carries:
+   - a maker-checker checklist whose steps deep-link into /accounting tabs
+   - SLA / TAT tracking and per-accountant productivity
+   - a client deliverables pack with preparer → reviewer → partner → client sign-off
+   - billing status (billable on client sign-off, hands off to /billing)
+
+  Role-aware:
+   - Accountant / Operator : full portfolio of runs across clients
+   - Firm Admin            : runs for own company
+   - Client                : deliverables pack + sign-off for own company only
+
+  Backing Dataverse tables (to be created in solution/src):
+   - adp_closerun     : one service run for a company+period (sla, tat, stage, billing)
+   - adp_closestep    : maker-checker checklist row, deep-linked to an accounting tab
+   - adp_deliverable  : client output document (trial balance, financials, recon…)
+   - adp_signoff      : maker-checker / client sign-off audit trail
+
+  Production wiring (no real backend in this preview):
+   - "Start run" mirrors Flow_StartAuditEngagement (creates adp_closerun + adp_closestep rows)
+   - "Submit / Approve / Return" mirrors Flow_SubmitForReview + Flow_SignOff (writes adp_signoff)
+   - "Share / Client sign" mirrors Flow_GenerateAuditReport + Flow_ManageSubscription (deliverables + billing)
+   The preview harness stubs these tables; see preview/preview.js.
+{% endcomment %}
+
+{% assign is_operator   = false %}
+{% assign is_admin      = false %}
+{% assign is_accountant = false %}
+{% assign is_client     = false %}
+{% if adp_personagroup == 'operator'   %}{% assign is_operator   = true %}{% endif %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_admin      = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% if adp_personagroup == 'client'     %}{% assign is_client     = true %}{% endif %}
+{% assign is_portfolio = false %}
+{% if is_accountant or is_operator %}{% assign is_portfolio = true %}{% endif %}
+
+{% assign sel_run = request.params.closerun | default: '' %}
+
+{% comment %} ==================== Data ==================== {% endcomment %}
+{% fetchxml runs_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+  <entity name="adp_closerun">
+    <attribute name="adp_closerunid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_period" />
+    <attribute name="adp_processid" />
+    <attribute name="adp_processname" />
+    <attribute name="adp_engagementid" />
+    <attribute name="adp_stage" />
+    <attribute name="adp_status" />
+    <attribute name="adp_preparername" />
+    <attribute name="adp_reviewername" />
+    <attribute name="adp_partnername" />
+    <attribute name="adp_startdate" />
+    <attribute name="adp_duedate" />
+    <attribute name="adp_sladays" />
+    <attribute name="adp_slastatus" />
+    <attribute name="adp_tatdays" />
+    <attribute name="adp_progress" />
+    <attribute name="adp_billstatus" />
+    <attribute name="adp_billamount" />
+    <order attribute="adp_duedate" descending="false" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign runs = runs_query.results.entities %}
+
+{% fetchxml staff_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="50">
+  <entity name="adp_staff">
+    <attribute name="adp_staffid" />
+    <attribute name="adp_name" />
+    <attribute name="adp_role" />
+    <attribute name="adp_initials" />
+    <attribute name="adp_opentasks" />
+    <attribute name="adp_capacity" />
+    <attribute name="adp_color" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign staff = staff_query.results.entities %}
+
+{% comment %} -------- Selected run + its children -------- {% endcomment %}
+{% assign current = nil %}
+{% if sel_run != '' %}
+  {% for r in runs %}{% if r.adp_closerunid == sel_run %}{% assign current = r %}{% endif %}{% endfor %}
+{% endif %}
+
+{% if sel_run != '' %}
+{% fetchxml steps_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_closestep">
+    <attribute name="adp_closestepid" />
+    <attribute name="adp_closerunid" />
+    <attribute name="adp_seq" />
+    <attribute name="adp_stepname" />
+    <attribute name="adp_accountingtab" />
+    <attribute name="adp_status" />
+    <attribute name="adp_preparername" />
+    <attribute name="adp_reviewername" />
+    <attribute name="adp_checkstatus" />
+    <attribute name="adp_completedon" />
+    <filter><condition attribute="adp_closerunid" operator="eq" value="{{ sel_run }}" /></filter>
+    <order attribute="adp_seq" descending="false" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign steps = steps_query.results.entities %}
+
+{% fetchxml deliverables_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_deliverable">
+    <attribute name="adp_deliverableid" />
+    <attribute name="adp_closerunid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_name" />
+    <attribute name="adp_kind" />
+    <attribute name="adp_status" />
+    <attribute name="adp_sharedon" />
+    <attribute name="adp_signedon" />
+    <attribute name="adp_url" />
+    <filter><condition attribute="adp_closerunid" operator="eq" value="{{ sel_run }}" /></filter>
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign deliverables = deliverables_query.results.entities %}
+
+{% fetchxml signoffs_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="100">
+  <entity name="adp_signoff">
+    <attribute name="adp_signoffid" />
+    <attribute name="adp_closerunid" />
+    <attribute name="adp_stepid" />
+    <attribute name="adp_level" />
+    <attribute name="adp_actor" />
+    <attribute name="adp_decision" />
+    <attribute name="adp_ts" />
+    <attribute name="adp_comments" />
+    <filter><condition attribute="adp_closerunid" operator="eq" value="{{ sel_run }}" /></filter>
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign signoffs = signoffs_query.results.entities %}
+{% endif %}
+
+{% comment %} -------- KPIs -------- {% endcomment %}
+{% assign k_inprogress = 0 %}
+{% assign k_duesoon    = 0 %}
+{% assign k_breaches   = 0 %}
+{% assign k_review     = 0 %}
+{% assign k_signoff    = 0 %}
+{% assign k_billable   = 0 %}
+{% for r in runs %}
+  {% unless r.adp_stage.label == 'Billed' %}{% assign k_inprogress = k_inprogress | plus: 1 %}{% endunless %}
+  {% if r.adp_slastatus.label == 'At Risk' %}{% assign k_duesoon = k_duesoon | plus: 1 %}{% endif %}
+  {% if r.adp_slastatus.label == 'Breached' %}{% assign k_breaches = k_breaches | plus: 1 %}{% endif %}
+  {% if r.adp_stage.label == 'Review' %}{% assign k_review = k_review | plus: 1 %}{% endif %}
+  {% if r.adp_stage.label == 'Client Sign-off' %}{% assign k_signoff = k_signoff | plus: 1 %}{% endif %}
+  {% if r.adp_billstatus.label == 'Draft' or r.adp_billstatus.label == 'Invoiced' %}
+    {% assign amt = r.adp_billamount | remove: ',' | plus: 0 %}
+    {% assign k_billable = k_billable | plus: amt %}
+  {% endif %}
+{% endfor %}
+
+<section class="mc-page">
+  <header class="mc-head">
+    <div>
+      <h2>Monthly Close &middot; Accounting BPO</h2>
+      <p class="mc-sub">
+        {% if is_portfolio %}Portfolio of close runs across all clients &middot; scheduling from
+          <a href="/service-delivery">Service Delivery</a>, work in <a href="/accounting">Accounting</a>.
+        {% elsif is_admin %}Close runs for <strong>{{ adp_companyid | default: '(your company)' }}</strong>.
+        {% else %}Your deliverables and sign-offs.{% endif %}
+      </p>
+    </div>
+    {% if is_portfolio %}
+      <button class="mc-btn mc-btn-primary" id="mcStartRun" type="button">+ Start close run</button>
+    {% endif %}
+  </header>
+
+  {% comment %} -------- KPI strip -------- {% endcomment %}
+  {% unless is_client %}
+  <div class="mc-kpis">
+    <div class="mc-kpi"><span class="mc-kpi-n">{{ k_inprogress }}</span><span class="mc-kpi-l">Runs in progress</span></div>
+    <div class="mc-kpi"><span class="mc-kpi-n">{{ k_duesoon }}</span><span class="mc-kpi-l">SLA at risk</span></div>
+    <div class="mc-kpi mc-kpi-danger"><span class="mc-kpi-n">{{ k_breaches }}</span><span class="mc-kpi-l">SLA breaches</span></div>
+    <div class="mc-kpi"><span class="mc-kpi-n">{{ k_review }}</span><span class="mc-kpi-l">Awaiting review</span></div>
+    <div class="mc-kpi"><span class="mc-kpi-n">{{ k_signoff }}</span><span class="mc-kpi-l">Awaiting client sign-off</span></div>
+    <div class="mc-kpi"><span class="mc-kpi-n">&#8377;{{ k_billable }}</span><span class="mc-kpi-l">Billable value</span></div>
+  </div>
+  {% endunless %}
+
+  {% comment %} -------- Selected-run context banner -------- {% endcomment %}
+  {% if current %}
+  <div class="mc-banner">
+    <div class="mc-banner-main">
+      <span class="mc-banner-eyebrow">Close run</span>
+      <h3>{{ current.adp_processname }} &middot; {{ current.adp_period }}</h3>
+      <p class="mc-banner-co">{{ current.adp_companyid.name }} &middot; due {{ current.adp_duedate }} &middot;
+        linked engagement <a href="/service-delivery">{{ current.adp_engagementid }}</a></p>
+      <div class="mc-roles">
+        <span class="mc-role"><span class="mc-ava">{{ current.adp_preparername | slice: 0 }}</span> Preparer · {{ current.adp_preparername }}</span>
+        <span class="mc-role"><span class="mc-ava">{{ current.adp_reviewername | slice: 0 }}</span> Reviewer · {{ current.adp_reviewername }}</span>
+        <span class="mc-role"><span class="mc-ava">{{ current.adp_partnername | slice: 0 }}</span> Partner · {{ current.adp_partnername }}</span>
+      </div>
+    </div>
+    <div class="mc-banner-side">
+      {% assign slacls = 'badge-ontime' %}
+      {% if current.adp_slastatus.label == 'At Risk' %}{% assign slacls = 'badge-atrisk' %}{% endif %}
+      {% if current.adp_slastatus.label == 'Breached' %}{% assign slacls = 'badge-breached' %}{% endif %}
+      <span class="mc-badge {{ slacls }}">SLA {{ current.adp_slastatus.label }}</span>
+      <span class="mc-metric">TAT <strong>{{ current.adp_tatdays }}d</strong> / SLA {{ current.adp_sladays }}d</span>
+      <div class="mc-progress"><span style="width:{{ current.adp_progress }}%"></span></div>
+      <span class="mc-metric">{{ current.adp_progress }}% complete</span>
+      <span class="mc-badge badge-bill">Billing · {{ current.adp_billstatus.label }}</span>
+      <a class="mc-link" href="/monthly-close">&larr; All runs</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% comment %} -------- Tabs -------- {% endcomment %}
+  {% assign start_tab = 'runs' %}
+  {% if current %}{% assign start_tab = 'checklist' %}{% endif %}
+  {% if is_client %}{% assign start_tab = 'deliverables' %}{% endif %}
+  <nav class="mc-tabs" role="tablist">
+    {% unless is_client %}<button class="mc-tab" data-tab="runs" type="button">Close runs</button>{% endunless %}
+    <button class="mc-tab" data-tab="checklist" type="button"{% unless current %} disabled title="Open a run first"{% endunless %}>Checklist</button>
+    <button class="mc-tab" data-tab="review" type="button"{% unless current %} disabled title="Open a run first"{% endunless %}>Review &amp; sign-off</button>
+    <button class="mc-tab" data-tab="deliverables" type="button"{% unless current %} disabled title="Open a run first"{% endunless %}>Deliverables</button>
+    {% unless is_client %}
+    <button class="mc-tab" data-tab="productivity" type="button">SLA &amp; productivity</button>
+    <button class="mc-tab" data-tab="billing" type="button">Billing</button>
+    {% endunless %}
+  </nav>
+
+  {% comment %} ==================== Close runs ==================== {% endcomment %}
+  {% unless is_client %}
+  <div class="mc-panel" data-panel="runs">
+    <table class="mc-table">
+      <thead><tr>
+        <th>Client</th><th>Service</th><th>Period</th><th>Stage</th><th>Owner</th>
+        <th>SLA</th><th>TAT</th><th>Progress</th><th>Billing</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td>{{ r.adp_companyid.name }}</td>
+          <td>{{ r.adp_processname }}</td>
+          <td>{{ r.adp_period }}</td>
+          <td><span class="mc-chip">{{ r.adp_stage.label }}</span></td>
+          <td>{{ r.adp_preparername }}</td>
+          <td>
+            {% assign sc = 'badge-ontime' %}
+            {% if r.adp_slastatus.label == 'At Risk' %}{% assign sc = 'badge-atrisk' %}{% endif %}
+            {% if r.adp_slastatus.label == 'Breached' %}{% assign sc = 'badge-breached' %}{% endif %}
+            <span class="mc-badge {{ sc }}">{{ r.adp_slastatus.label }}</span>
+          </td>
+          <td>{{ r.adp_tatdays }}d / {{ r.adp_sladays }}d</td>
+          <td><div class="mc-progress mc-progress-sm"><span style="width:{{ r.adp_progress }}%"></span></div></td>
+          <td><span class="mc-badge badge-bill">{{ r.adp_billstatus.label }}</span></td>
+          <td><a class="mc-link" href="/monthly-close?closerun={{ r.adp_closerunid }}">Open &rarr;</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endunless %}
+
+  {% comment %} ==================== Checklist ==================== {% endcomment %}
+  {% if current %}
+  <div class="mc-panel" data-panel="checklist">
+    <p class="mc-panel-intro">Maker-checker close checklist. Each step opens the matching tab in the
+      Accounting workspace so the preparer can do the actual work, then submits it for review.</p>
+    <ol class="mc-steps">
+      {% for s in steps %}
+      <li class="mc-step">
+        <div class="mc-step-main">
+          <span class="mc-step-seq">{{ s.adp_seq }}</span>
+          <div>
+            <strong>{{ s.adp_stepname }}</strong>
+            <span class="mc-step-meta">Preparer {{ s.adp_preparername }} · Reviewer {{ s.adp_reviewername }}{% if s.adp_completedon != '' %} · done {{ s.adp_completedon }}{% endif %}</span>
+          </div>
+        </div>
+        <div class="mc-step-side">
+          {% assign stc = 'chip-notstarted' %}
+          {% if s.adp_status.label == 'In Progress' %}{% assign stc = 'chip-inprogress' %}{% endif %}
+          {% if s.adp_status.label == 'Done' %}{% assign stc = 'chip-done' %}{% endif %}
+          {% if s.adp_status.label == 'Blocked' %}{% assign stc = 'chip-blocked' %}{% endif %}
+          <span class="mc-chip {{ stc }}">{{ s.adp_status.label }}</span>
+          {% assign ckc = 'badge-maker' %}
+          {% if s.adp_checkstatus.label == 'Submitted' %}{% assign ckc = 'badge-submitted' %}{% endif %}
+          {% if s.adp_checkstatus.label == 'Approved' %}{% assign ckc = 'badge-ontime' %}{% endif %}
+          {% if s.adp_checkstatus.label == 'Returned' %}{% assign ckc = 'badge-returned' %}{% endif %}
+          <span class="mc-badge {{ ckc }}">{{ s.adp_checkstatus.label }}</span>
+          <a class="mc-btn mc-btn-sm" href="/accounting?closerun={{ current.adp_closerunid }}&amp;company={{ current.adp_companyid.id }}&amp;period={{ current.adp_period | url_encode }}&amp;tab={{ s.adp_accountingtab }}">Open in Accounting &rarr;</a>
+          <button class="mc-btn mc-btn-sm mc-submit" data-step="{{ s.adp_closestepid }}" type="button">Submit for review</button>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
+
+  {% comment %} ==================== Review & sign-off ==================== {% endcomment %}
+  {% if current %}
+  <div class="mc-panel" data-panel="review">
+    <p class="mc-panel-intro">Maker-checker: the preparer submits each step, the reviewer approves or returns it,
+      and the partner gives final approval before deliverables are released to the client.</p>
+    <div class="mc-review-grid">
+      <div>
+        <h4>Steps awaiting decision</h4>
+        <ul class="mc-review-list">
+          {% for s in steps %}
+          <li class="mc-review-row" data-step="{{ s.adp_closestepid }}">
+            <div>
+              <strong>{{ s.adp_stepname }}</strong>
+              <span class="mc-step-meta">{{ s.adp_preparername }} &rarr; {{ s.adp_reviewername }}</span>
+            </div>
+            <div class="mc-review-actions">
+              {% assign ckc = 'badge-maker' %}
+              {% if s.adp_checkstatus.label == 'Submitted' %}{% assign ckc = 'badge-submitted' %}{% endif %}
+              {% if s.adp_checkstatus.label == 'Approved' %}{% assign ckc = 'badge-ontime' %}{% endif %}
+              {% if s.adp_checkstatus.label == 'Returned' %}{% assign ckc = 'badge-returned' %}{% endif %}
+              <span class="mc-badge mc-check {{ ckc }}">{{ s.adp_checkstatus.label }}</span>
+              {% unless is_client %}
+              <button class="mc-btn mc-btn-sm mc-approve" data-step="{{ s.adp_closestepid }}" type="button">Approve</button>
+              <button class="mc-btn mc-btn-sm mc-return" data-step="{{ s.adp_closestepid }}" type="button">Return</button>
+              {% endunless %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div>
+        <h4>Sign-off trail</h4>
+        <ul class="mc-trail" id="mcTrail">
+          {% for so in signoffs %}
+          <li class="mc-trail-item">
+            <span class="mc-badge badge-level">{{ so.adp_level.label }}</span>
+            <div>
+              <strong>{{ so.adp_actor }}</strong> &middot; {{ so.adp_decision.label }}
+              <span class="mc-step-meta">{{ so.adp_ts }} — {{ so.adp_comments }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% comment %} ==================== Deliverables ==================== {% endcomment %}
+  {% if current %}
+  <div class="mc-panel" data-panel="deliverables">
+    <p class="mc-panel-intro">Client deliverables pack for {{ current.adp_companyid.name }} · {{ current.adp_period }}.
+      {% if is_client %}Review and sign off the documents prepared by your accounting team.{% else %}Share with the client and capture their sign-off.{% endif %}</p>
+    <div class="mc-deliver-grid">
+      {% for d in deliverables %}
+      <div class="mc-deliver-card" data-deliverable="{{ d.adp_deliverableid }}">
+        <div class="mc-deliver-top">
+          <span class="mc-deliver-kind">{{ d.adp_kind }}</span>
+          {% assign dc = 'chip-notstarted' %}
+          {% if d.adp_status.label == 'Ready' %}{% assign dc = 'chip-inprogress' %}{% endif %}
+          {% if d.adp_status.label == 'Shared' %}{% assign dc = 'badge-submitted' %}{% endif %}
+          {% if d.adp_status.label == 'Client Signed' %}{% assign dc = 'badge-client-signed' %}{% endif %}
+          <span class="mc-badge mc-deliver-status {{ dc }}">{{ d.adp_status.label }}</span>
+        </div>
+        <strong class="mc-deliver-name">{{ d.adp_name }}</strong>
+        <span class="mc-step-meta">{% if d.adp_sharedon != '' %}Shared {{ d.adp_sharedon }}{% endif %}{% if d.adp_signedon != '' %} · Signed {{ d.adp_signedon }}{% endif %}</span>
+        <div class="mc-deliver-actions">
+          <a class="mc-btn mc-btn-sm" href="{{ d.adp_url }}">Preview</a>
+          {% if is_client %}
+          <button class="mc-btn mc-btn-sm mc-btn-primary mc-clientsign" data-deliverable="{{ d.adp_deliverableid }}" type="button">Sign off</button>
+          {% else %}
+          <button class="mc-btn mc-btn-sm mc-share" data-deliverable="{{ d.adp_deliverableid }}" type="button">Share with client</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% comment %} ==================== SLA & productivity ==================== {% endcomment %}
+  {% unless is_client %}
+  <div class="mc-panel" data-panel="productivity">
+    <p class="mc-panel-intro">Per-accountant throughput and SLA performance, derived from close runs.</p>
+    <table class="mc-table">
+      <thead><tr><th>Accountant</th><th>Runs handled</th><th>Avg TAT</th><th>On-time</th><th>Capacity</th></tr></thead>
+      <tbody>
+        {% for p in staff %}
+          {% assign cnt = 0 %}{% assign tatsum = 0 %}{% assign ontime = 0 %}
+          {% for r in runs %}
+            {% if r.adp_preparername == p.adp_name %}
+              {% assign cnt = cnt | plus: 1 %}
+              {% assign tatsum = tatsum | plus: r.adp_tatdays %}
+              {% unless r.adp_slastatus.label == 'Breached' %}{% assign ontime = ontime | plus: 1 %}{% endunless %}
+            {% endif %}
+          {% endfor %}
+          {% if cnt > 0 %}
+          <tr>
+            <td><span class="mc-ava">{{ p.adp_initials }}</span> {{ p.adp_name }}</td>
+            <td>{{ cnt }}</td>
+            <td>{{ tatsum | divided_by: cnt }}d</td>
+            <td>{% assign pct = ontime | times: 100 | divided_by: cnt | round %}{{ pct }}%</td>
+            <td><div class="mc-progress mc-progress-sm"><span style="width:{% if p.adp_capacity > 0 %}{{ p.adp_opentasks | times: 100 | divided_by: p.adp_capacity }}{% else %}0{% endif %}%"></span></div>
+              <span class="mc-step-meta">{{ p.adp_opentasks }}/{{ p.adp_capacity }} tasks</span></td>
+          </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h4 class="mc-subhead">SLA breaches</h4>
+    <ul class="mc-breach-list">
+      {% assign anybreach = false %}
+      {% for r in runs %}
+        {% if r.adp_slastatus.label == 'Breached' %}
+          {% assign anybreach = true %}
+          <li><span class="mc-badge badge-breached">Breached</span> {{ r.adp_companyid.name }} · {{ r.adp_processname }} · {{ r.adp_period }} — TAT {{ r.adp_tatdays }}d vs SLA {{ r.adp_sladays }}d (owner {{ r.adp_preparername }})</li>
+        {% endif %}
+      {% endfor %}
+      {% unless anybreach %}<li class="mc-step-meta">No SLA breaches in the current portfolio.</li>{% endunless %}
+    </ul>
+  </div>
+  {% endunless %}
+
+  {% comment %} ==================== Billing ==================== {% endcomment %}
+  {% unless is_client %}
+  <div class="mc-panel" data-panel="billing">
+    <p class="mc-panel-intro">Runs become billable once the client signs off the deliverables. Invoicing hands off to
+      <a href="/billing">Billing</a>.</p>
+    <table class="mc-table">
+      <thead><tr><th>Client</th><th>Service</th><th>Period</th><th>Stage</th><th>Billing</th><th>Amount (&#8377;)</th><th></th></tr></thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td>{{ r.adp_companyid.name }}</td>
+          <td>{{ r.adp_processname }}</td>
+          <td>{{ r.adp_period }}</td>
+          <td><span class="mc-chip">{{ r.adp_stage.label }}</span></td>
+          <td><span class="mc-badge badge-bill">{{ r.adp_billstatus.label }}</span></td>
+          <td>{{ r.adp_billamount }}</td>
+          <td>
+            {% if r.adp_billstatus.label == 'Draft' %}<a class="mc-btn mc-btn-sm mc-btn-primary" href="/billing">Raise invoice</a>
+            {% elsif r.adp_billstatus.label == 'Not billable' %}<span class="mc-step-meta">Awaiting sign-off</span>
+            {% else %}<a class="mc-link" href="/billing">View in Billing &rarr;</a>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endunless %}
+
+</section>
+
+<script>
+(function () {
+  var root = document.querySelector('.mc-page');
+  if (!root) return;
+  var startTab = {{ start_tab | json }};
+  var tabs = Array.prototype.slice.call(root.querySelectorAll('.mc-tab'));
+  var panels = Array.prototype.slice.call(root.querySelectorAll('.mc-panel'));
+  function show(name) {
+    tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.tab === name); });
+    panels.forEach(function (p) { p.classList.toggle('is-active', p.dataset.panel === name); });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { if (!t.disabled) show(t.dataset.tab); });
+  });
+  show(startTab);
+
+  // ---- Maker-checker (client-side illustrative only) ----
+  function setBadge(el, text, cls) {
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'mc-badge mc-check ' + cls;
+  }
+  function logTrail(level, actor, decision) {
+    var trail = document.getElementById('mcTrail');
+    if (!trail) return;
+    var li = document.createElement('li');
+    li.className = 'mc-trail-item';
+    var now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+    li.innerHTML = '<span class="mc-badge badge-level">' + level + '</span>' +
+      '<div><strong>' + actor + '</strong> &middot; ' + decision +
+      ' <span class="mc-step-meta">' + now + ' — (preview action)</span></div>';
+    trail.insertBefore(li, trail.firstChild);
+  }
+  root.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.classList.contains('mc-submit')) {
+      var id = btn.dataset.step;
+      var row = root.querySelector('.mc-review-row[data-step="' + id + '"] .mc-check');
+      setBadge(row, 'Submitted', 'badge-submitted');
+      logTrail('Preparer', 'You', 'Submitted for review');
+    } else if (btn.classList.contains('mc-approve')) {
+      setBadge(btn.closest('.mc-review-actions').querySelector('.mc-check'), 'Approved', 'badge-ontime');
+      logTrail('Reviewer', 'You', 'Approved');
+    } else if (btn.classList.contains('mc-return')) {
+      setBadge(btn.closest('.mc-review-actions').querySelector('.mc-check'), 'Returned', 'badge-returned');
+      logTrail('Reviewer', 'You', 'Returned for rework');
+    } else if (btn.classList.contains('mc-share')) {
+      var card = btn.closest('.mc-deliver-card');
+      var s = card.querySelector('.mc-deliver-status');
+      setBadge(s, 'Shared', 'badge-submitted'); s.classList.add('mc-deliver-status');
+    } else if (btn.classList.contains('mc-clientsign')) {
+      var c2 = btn.closest('.mc-deliver-card');
+      var s2 = c2.querySelector('.mc-deliver-status');
+      setBadge(s2, 'Client Signed', 'badge-client-signed'); s2.classList.add('mc-deliver-status');
+      btn.disabled = true;
+    } else if (btn.id === 'mcStartRun') {
+      alert('In production this triggers Flow_StartCloseRun: creates an adp_closerun and its adp_closestep checklist from the service template, then links it to the Service Delivery engagement.');
+    }
+  });
+})();
+</script>
+
+{% include 'adp-shell-close' %}

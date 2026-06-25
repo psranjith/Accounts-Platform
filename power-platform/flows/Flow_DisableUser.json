@@ -1,0 +1,114 @@
+{
+  "name": "Flow_DisableUser",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_DisableUser",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "triggers": {
+        "When_HTTP_Request_Received": {
+          "type": "Request",
+          "kind": "Http",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "appUserId": { "type": "string" },
+                "reason": { "type": "string" },
+                "actor": {
+                  "type": "string",
+                  "description": "operator | firmadmin (logged for audit)"
+                }
+              },
+              "required": [ "appUserId", "actor" ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Get_App_User": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "GetItem",
+            "parameters": {
+              "entityName": "adp_appusers",
+              "recordId": "@{triggerBody()?['appUserId']}"
+            }
+          }
+        },
+        "Mark_AppUser_Disabled": {
+          "runAfter": { "Get_App_User": [ "Succeeded" ] },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "UpdateRow",
+            "parameters": {
+              "entityName": "adp_appusers",
+              "recordId": "@{triggerBody()?['appUserId']}",
+              "item/adp_status": "Disabled",
+              "item/adp_disabledon": "@{utcNow()}",
+              "item/adp_disabledreason": "@{triggerBody()?['reason']}"
+            }
+          }
+        },
+        "Deactivate_Portal_Contact": {
+          "runAfter": { "Mark_AppUser_Disabled": [ "Succeeded" ] },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "UpdateRow",
+            "parameters": {
+              "entityName": "contacts",
+              "recordId": "@{body('Get_App_User')?['_adp_contactid_value']}",
+              "item/statecode": 1,
+              "item/statuscode": 2,
+              "item/adx_identity_locallogindisabled": true
+            }
+          }
+        },
+        "Revoke_Entra_Sessions": {
+          "runAfter": { "Deactivate_Portal_Contact": [ "Succeeded" ] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_msgraph" },
+            "method": "post",
+            "path": "/v1.0/users/@{encodeURIComponent(body('Get_App_User')?['adp_entraobjectid'])}/revokeSignInSessions"
+          }
+        },
+        "Write_Audit_Log": {
+          "runAfter": { "Revoke_Entra_Sessions": [ "Succeeded", "Failed", "Skipped" ] },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "CreateRecord",
+            "parameters": {
+              "entityName": "adp_auditlogs",
+              "item/adp_name": "Disable user @{body('Get_App_User')?['adp_email']}",
+              "item/adp_action": "user.disable",
+              "item/adp_actor": "@{triggerBody()?['actor']}",
+              "item/adp_targetentity": "adp_appuser",
+              "item/adp_targetid": "@{triggerBody()?['appUserId']}",
+              "item/adp_reason": "@{triggerBody()?['reason']}",
+              "item/adp_occurredon": "@{utcNow()}"
+            }
+          }
+        },
+        "Response": {
+          "runAfter": { "Write_Audit_Log": [ "Succeeded", "Failed", "Skipped" ] },
+          "type": "Response",
+          "inputs": {
+            "statusCode": 200,
+            "body": { "status": "Disabled", "appUserId": "@{triggerBody()?['appUserId']}" }
+          }
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {}
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {},
+      "shared_msgraph": {}
+    }
+  }
+}

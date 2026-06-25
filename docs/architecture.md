@@ -80,7 +80,7 @@ This document is the canonical layer map. For per-page details see [usability.md
 3. **Power Pages table permissions** — declared in [power-platform/security/table-permissions.yml](../power-platform/security/table-permissions.yml). Server-side, defence-in-depth.
 4. **Power BI RLS** — `CompanyRLS` role on the dataset.
 
-Persona derivation lives in [adp-user-context.liquid](../power-platform/portal/templates/adp-user-context.liquid): it reads `adp_role` from `adp_appuser` and downcase-maps to one of the four `adp_personagroup` values.
+Persona derivation lives in [adp-user-context.liquid](../power-platform/portal/templates/adp-user-context.liquid): it reads `adp_jobfunction` from `adp_appuser` (falling back to a `adp_role` label match) and maps to one of the four `adp_personagroup` values — `operator`, `firmadmin`, `accountant`, `client`.
 
 ---
 
@@ -88,9 +88,10 @@ Persona derivation lives in [adp-user-context.liquid](../power-platform/portal/t
 
 | Table | Purpose | Key fields |
 |---|---|---|
-| `adp_company` | Client company master | name, GSTIN, PAN, primary contact, firm reference |
-| `adp_appuser` | Portal user (linked to Entra OID) | `identity_provider_object_id`, `adp_role`, `adp_companyid` |
-| `adp_companyassignment` | Accountant ↔ company mapping | `adp_staffid`, `adp_companyid` |
+| `adp_firm` | Tenant firm (one row per accounting practice) | `adp_name`, `adp_status` (Trial/Active/Suspended), `adp_plan`, `adp_country`, `adp_entragroupid`, `adp_sharepointsiteurl`, `adp_powerbiworkspaceid`, `adp_activatedon` |
+| `adp_company` | Client company master | name, GSTIN, PAN, primary contact, `adp_firmid` (parent firm) |
+| `adp_appuser` | Portal user (linked to Entra OID) | `adp_entraobjectid`, `adp_contactid`, `adp_firmid`, `adp_companyid`, `adp_role`, `adp_jobfunction` (operator/firmadmin/accountant/client), `adp_status` (Pending/Active/Disabled), `adp_invitedon`, `adp_lastloginon`, `adp_disabledon`, `adp_disabledreason` |
+| `adp_companyassignment` | App-user ↔ company mapping (replaces flat `adp_staffid`) | `adp_appuserid`, `adp_companyid`, `adp_firmid`, `adp_accesslevel` (read/contribute/manage) |
 | `adp_entitlement` | Active bundle per company | `adp_bundlecode`, periodstart/end |
 | `adp_auditengagement` | One audit per (company, program, period) | `adp_programcode`, `adp_periodfrom/to`, `adp_status`, materiality, lead partner/manager |
 | `adp_workpaper` | Procedure execution record | `adp_auditengagementid`, `adp_procedurecode`, status, preparer, sample size/method, conclusion |

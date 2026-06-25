@@ -13,24 +13,31 @@
             "schema": {
               "type": "object",
               "properties": {
-                "email": {
-                  "type": "string"
-                },
-                "displayName": {
-                  "type": "string"
-                },
-                "companyId": {
-                  "type": "string"
+                "email": { "type": "string" },
+                "displayName": { "type": "string" },
+                "firmId": { "type": "string" },
+                "jobFunction": {
+                  "type": "string",
+                  "description": "operator | firmadmin | accountant | client"
                 },
                 "role": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "ADP web role name to assign (e.g. 'ADP Firm Admin', 'ADP Accountant', 'ADP Client User')."
+                },
+                "companyAssignments": {
+                  "type": "array",
+                  "description": "Companies the invitee is allowed to act on. Required for accountants and clients.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "companyId": { "type": "string" },
+                      "accessLevel": { "type": "string", "description": "read | contribute | manage" }
+                    },
+                    "required": [ "companyId" ]
+                  }
                 }
               },
-              "required": [
-                "email",
-                "companyId",
-                "role"
-              ]
+              "required": [ "email", "firmId", "jobFunction", "role" ]
             }
           }
         }
@@ -39,45 +46,120 @@
         "Send_B2B_Invite": {
           "type": "ApiConnection",
           "inputs": {
-            "host": {
-              "connectionReferenceName": "shared_msgraph"
-            },
+            "host": { "connectionReferenceName": "shared_msgraph" },
             "method": "post",
             "path": "/v1.0/invitations",
             "body": {
               "invitedUserEmailAddress": "@{triggerBody()?['email']}",
+              "invitedUserDisplayName": "@{coalesce(triggerBody()?['displayName'],triggerBody()?['email'])}",
               "inviteRedirectUrl": "@{parameters('adp_PortalUrl')}",
-              "sendInvitationMessage": true
+              "sendInvitationMessage": true,
+              "invitedUserType": "Guest"
+            }
+          }
+        },
+        "Create_Portal_Contact": {
+          "runAfter": { "Send_B2B_Invite": [ "Succeeded" ] },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "CreateRecord",
+            "parameters": {
+              "entityName": "contacts",
+              "item/firstname": "@{coalesce(triggerBody()?['displayName'],triggerBody()?['email'])}",
+              "item/emailaddress1": "@{triggerBody()?['email']}",
+              "item/adx_externalidentityid": "@{body('Send_B2B_Invite')?['invitedUser']?['id']}",
+              "item/adx_identity_emailaddress1confirmed": true,
+              "item/msdyn_portaltermsagreementdate": "@{utcNow()}"
             }
           }
         },
         "Create_ADP_AppUser": {
-          "runAfter": {
-            "Send_B2B_Invite": [
-              "Succeeded"
-            ]
-          },
+          "runAfter": { "Create_Portal_Contact": [ "Succeeded" ] },
           "type": "OpenApiConnection",
           "inputs": {
-            "host": {
-              "connectionReferenceName": "shared_commondataserviceforapps"
-            },
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
             "operationId": "CreateRecord",
             "parameters": {
               "entityName": "adp_appusers",
               "item/adp_name": "@{coalesce(triggerBody()?['displayName'],triggerBody()?['email'])}",
               "item/adp_email": "@{triggerBody()?['email']}",
               "item/adp_entraobjectid": "@{body('Send_B2B_Invite')?['invitedUser']?['id']}",
-              "item/adp_companyid@odata.bind": "adp_companies(@{triggerBody()?['companyId']})",
-              "item/adp_role": "@{triggerBody()?['role']}"
+              "item/adp_firmid@odata.bind": "adp_firms(@{triggerBody()?['firmId']})",
+              "item/adp_contactid@odata.bind": "contacts(@{body('Create_Portal_Contact')?['contactid']})",
+              "item/adp_jobfunction": "@{triggerBody()?['jobFunction']}",
+              "item/adp_role": "@{triggerBody()?['role']}",
+              "item/adp_status": "Pending",
+              "item/adp_invitedon": "@{utcNow()}"
+            }
+          }
+        },
+        "Lookup_Web_Role": {
+          "runAfter": { "Create_ADP_AppUser": [ "Succeeded" ] },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "ListRecords",
+            "parameters": {
+              "entityName": "adx_webroles",
+              "$filter": "adx_name eq '@{triggerBody()?['role']}'",
+              "$top": 1
+            }
+          }
+        },
+        "Assign_Web_Role": {
+          "runAfter": { "Lookup_Web_Role": [ "Succeeded" ] },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "Associate",
+            "parameters": {
+              "entityName": "contacts",
+              "recordId": "@{body('Create_Portal_Contact')?['contactid']}",
+              "associateEntityName": "adx_webroles",
+              "associateRelationshipName": "adx_webrole_contact",
+              "item/@odata.id": "@{first(body('Lookup_Web_Role')?['value'])?['@odata.id']}"
+            }
+          }
+        },
+        "Create_Company_Assignments": {
+          "runAfter": { "Assign_Web_Role": [ "Succeeded" ] },
+          "type": "Foreach",
+          "foreach": "@coalesce(triggerBody()?['companyAssignments'], createArray())",
+          "actions": {
+            "Create_Assignment_Row": {
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+                "operationId": "CreateRecord",
+                "parameters": {
+                  "entityName": "adp_companyassignments",
+                  "item/adp_name": "@{triggerBody()?['email']} -> @{items('Create_Company_Assignments')?['companyId']}",
+                  "item/adp_appuserid@odata.bind": "adp_appusers(@{outputs('Create_ADP_AppUser')?['body/adp_appuserid']})",
+                  "item/adp_companyid@odata.bind": "adp_companies(@{items('Create_Company_Assignments')?['companyId']})",
+                  "item/adp_firmid@odata.bind": "adp_firms(@{triggerBody()?['firmId']})",
+                  "item/adp_accesslevel": "@{coalesce(items('Create_Company_Assignments')?['accessLevel'],'contribute')}"
+                }
+              }
+            }
+          }
+        },
+        "Response": {
+          "runAfter": { "Create_Company_Assignments": [ "Succeeded", "Skipped" ] },
+          "type": "Response",
+          "inputs": {
+            "statusCode": 200,
+            "body": {
+              "appUserId": "@{outputs('Create_ADP_AppUser')?['body/adp_appuserid']}",
+              "contactId": "@{body('Create_Portal_Contact')?['contactid']}",
+              "entraObjectId": "@{body('Send_B2B_Invite')?['invitedUser']?['id']}",
+              "status": "Pending"
             }
           }
         }
       },
       "parameters": {
-        "adp_PortalUrl": {
-          "type": "String"
-        }
+        "adp_PortalUrl": { "type": "String" }
       }
     },
     "connectionReferences": {

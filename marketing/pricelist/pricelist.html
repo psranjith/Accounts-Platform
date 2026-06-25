@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SmartSoft — Tally on Cloud (Microsoft Azure) — Pricelist</title>
+<style>
+  :root{
+    --ink:#0a0a0a; --ink2:#1a1a1a; --muted:#5b6470; --border:#e4e4df;
+    --accent:#FFCB05; --bg:#fff; --bg2:#f7f7f5; --hl:#fffbe6;
+    --font:"Inter","Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:12.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .page{max-width:920px;margin:0 auto;padding:32px 40px 50px}
+
+  header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:3px solid var(--accent)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{height:42px}
+  .brand-fallback{font-weight:800;font-size:1.4rem}
+  .brand-fallback .b-accent{background:var(--accent);padding:0 6px;border-radius:4px}
+  .meta{text-align:right;color:var(--muted);font-size:.82rem}
+  .meta strong{color:var(--ink)}
+
+  h1{font-size:1.55rem;margin:22px 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:0 0 6px}
+  .stamp{color:var(--muted);font-size:.8rem;margin:0 0 18px}
+  .pill{display:inline-block;background:var(--accent);color:#1a1a1a;font-weight:700;font-size:.72rem;padding:3px 9px;border-radius:99px;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;margin-left:6px}
+  .pill-dark{background:#0a0a0a;color:#fff}
+
+  h2{font-size:1.02rem;margin:22px 0 4px;letter-spacing:.01em}
+  h2 .tag{font-weight:500;color:var(--muted);font-size:.85rem;margin-left:8px}
+  .lead{color:var(--muted);font-size:.85rem;margin:0 0 8px}
+
+  table{width:100%;border-collapse:collapse;margin:6px 0 14px;font-size:.85rem}
+  thead th{text-align:left;background:#0a0a0a;color:#fff;padding:8px 10px;font-weight:600;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase}
+  thead th.num{text-align:right}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  tbody td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+  tbody td.note{color:var(--muted);font-size:.78rem}
+  tbody tr.total td{background:#f3f3ee;font-weight:700;border-top:2px solid #0a0a0a}
+  tbody tr.total td.num{color:var(--ink)}
+  tbody tr.hl td{background:var(--hl)}
+  tbody tr.strike td.num{text-decoration:line-through;color:var(--muted);font-weight:500}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:var(--bg2)}
+  .card h3{margin:0 0 6px;font-size:.92rem}
+  .kv{display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed var(--border);font-size:.85rem}
+  .kv:first-of-type{border-top:0}
+  .kv strong{font-variant-numeric:tabular-nums}
+
+  .notes{background:var(--bg2);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:12px 14px;font-size:.82rem;color:var(--ink2);margin-top:14px}
+  .notes h3{margin:0 0 6px;font-size:.92rem}
+  .notes ul{margin:0;padding-left:18px}
+  .notes li{padding:2px 0}
+
+  footer{margin-top:24px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;color:var(--muted);font-size:.76rem;flex-wrap:wrap;gap:8px}
+
+  @media print{
+    @page{size:A4;margin:12mm}
+    body{font-size:11px}
+    .page{padding:0;max-width:100%}
+    .no-print{display:none !important}
+    a{color:inherit;text-decoration:none}
+    table,.card,.notes{break-inside:avoid}
+    h2{break-after:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="brand">
+      <img src="../assets/smartsoft-logo.png" alt="SmartSoft" onerror="this.style.display='none'" />
+      <div class="brand-fallback">Smart<span class="b-accent">soft</span></div>
+    </div>
+    <div class="meta">
+      <div><strong>Tally on Cloud — Microsoft Azure</strong></div>
+      <div>Pricelist · INR · v1.0</div>
+      <div>Effective May 2026</div>
+    </div>
+  </header>
+
+  <h1>Tally on Cloud <span class="pill">Cost-optimised</span></h1>
+  <p class="sub">1-Year Azure Reserved Instance + 50% RDS bundle. Managed end-to-end by SmartSoft.</p>
+  <p class="stamp">All amounts in INR. GST (18% IGST) extra. Indicative pricing — final figures locked at PO.</p>
+
+  <!-- A. Base infra -->
+  <h2>A. Base infra — fixed per environment <span class="tag">(1-Year Reserved Instance)</span></h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%">Line item</th>
+        <th>Specification</th>
+        <th class="num">Monthly</th>
+        <th class="num">Annual</th>
+        <th style="width:22%">Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Azure VM (RI)</td>
+        <td>Standard D4s v5 — 4 vCPU / 16 GB RAM, Windows licence-included, Central India</td>
+        <td class="num">₹11,000</td>
+        <td class="num">₹1,32,000</td>
+        <td class="note">1-Year Reserved Instance</td>
+      </tr>
+      <tr>
+        <td>OS managed disk</td>
+        <td>Premium SSD P10 — 128 GB</td>
+        <td class="num">₹1,500</td>
+        <td class="num">₹17,100</td>
+        <td class="note">—</td>
+      </tr>
+      <tr>
+        <td>Networking</td>
+        <td>Static public IP, RDS Gateway, 50 GB egress / month</td>
+        <td class="num">₹500</td>
+        <td class="num">₹5,700</td>
+        <td class="note">—</td>
+      </tr>
+      <tr class="total">
+        <td colspan="2">Base infra — total</td>
+        <td class="num">₹13,000</td>
+        <td class="num">₹1,54,800</td>
+        <td class="note">vs ₹25,500/mo PAYG</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- B. Per-user -->
+  <h2>B. Per-user charge <span class="tag">(per concurrent Tally user, RDS at 50% bundle rate)</span></h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%">Line item</th>
+        <th>What it covers</th>
+        <th class="num">Monthly / user</th>
+        <th class="num">Annual / user</th>
+        <th style="width:22%">Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>RDS User CAL</td>
+        <td>Microsoft RDS User CAL (SPLA, amortized monthly)</td>
+        <td class="num">₹175</td>
+        <td class="num">₹1,995</td>
+        <td class="note">50% bundle rate (vs ₹350 list)</td>
+      </tr>
+      <tr>
+        <td>L1 helpdesk &amp; support</td>
+        <td>Ticket + remote-takeover support, business hours</td>
+        <td class="num">₹400</td>
+        <td class="num">₹4,560</td>
+        <td class="note">—</td>
+      </tr>
+      <tr>
+        <td>Implementation (amortized)</td>
+        <td>One-time ₹75,000 spread across the first 12 months</td>
+        <td class="num">₹200</td>
+        <td class="num">₹2,280</td>
+        <td class="note">—</td>
+      </tr>
+      <tr>
+        <td>User storage allowance</td>
+        <td>10 GB profile + export storage per user</td>
+        <td class="num">₹50</td>
+        <td class="num">₹570</td>
+        <td class="note">—</td>
+      </tr>
+      <tr class="total">
+        <td colspan="2">Per user — total</td>
+        <td class="num">₹825</td>
+        <td class="num">₹9,405</td>
+        <td class="note">Optimised</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- C. One-time -->
+  <h2>C. One-time charges <span class="tag">(paid once at project start)</span> <span class="pill pill-dark">Waived — introductory offer</span></h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%">Line item</th>
+        <th>Scope</th>
+        <th class="num">List (INR)</th>
+        <th class="num">Payable (INR)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="strike">
+        <td>Environment provisioning</td>
+        <td>Azure subscription, VM build, disks, backup vault, networking, security baseline</td>
+        <td class="num">₹35,000</td>
+        <td class="num" style="text-decoration:none;color:var(--ink);font-weight:600">₹0</td>
+      </tr>
+      <tr class="strike">
+        <td>Tally data migration</td>
+        <td>Copy existing companies to hosted VM, integrity verification, cut-over plan</td>
+        <td class="num">₹15,000</td>
+        <td class="num" style="text-decoration:none;color:var(--ink);font-weight:600">₹0</td>
+      </tr>
+      <tr class="strike">
+        <td>User training</td>
+        <td>2-hour session: RDP login, file transfer, do's &amp; don'ts</td>
+        <td class="num">₹5,000</td>
+        <td class="num" style="text-decoration:none;color:var(--ink);font-weight:600">₹0</td>
+      </tr>
+      <tr class="total hl">
+        <td colspan="2">One-time — total (waived as introductory offer)</td>
+        <td class="num" style="text-decoration:line-through;color:var(--muted);font-weight:500">₹55,000</td>
+        <td class="num">₹0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- D. Worked example -->
+  <h2>D. Worked example — 12 concurrent users <span class="tag">(annual, ex GST)</span></h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%">User band</th>
+        <th>Calculation</th>
+        <th class="num">Monthly</th>
+        <th class="num">Annual</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="strike">
+        <td>12 users — list</td>
+        <td>Base ₹1,54,800 + (12 × ₹9,405)</td>
+        <td class="num">₹22,305</td>
+        <td class="num">₹2,67,660</td>
+        <td class="note">List price</td>
+      </tr>
+      <tr class="total hl">
+        <td>12 users — introductory offer</td>
+        <td>Discounted introductory bundle</td>
+        <td class="num">₹16,500</td>
+        <td class="num">₹1,98,000</td>
+        <td class="note">Saves ~₹69,660 / year</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- E. Add-ons -->
+  <h2>E. Optional add-ons</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:28%">Add-on</th>
+        <th>Description</th>
+        <th class="num">Recurring</th>
+        <th class="num">One-time</th>
+        <th>Unit</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Microsoft 365 Business Standard</td>
+        <td>Outlook / Word / Excel / PowerPoint / OneDrive inside hosted session</td>
+        <td class="num">₹530</td>
+        <td class="num">₹0</td>
+        <td class="note">/ user / month</td>
+      </tr>
+      <tr>
+        <td>Power BI Pro + Tally connector</td>
+        <td>Power BI Pro CAL + ODBC connector + starter dashboards</td>
+        <td class="num">₹950</td>
+        <td class="num">₹40,000</td>
+        <td class="note">/ user / month + one-time</td>
+      </tr>
+      <tr>
+        <td>Additional data disk — 256 GB</td>
+        <td>Premium SSD block, expandable without downtime</td>
+        <td class="num">₹3,000</td>
+        <td class="num">₹0</td>
+        <td class="note">/ month</td>
+      </tr>
+      <tr>
+        <td>Additional data disk — 512 GB</td>
+        <td>Premium SSD block, expandable without downtime</td>
+        <td class="num">₹5,500</td>
+        <td class="num">₹0</td>
+        <td class="note">/ month</td>
+      </tr>
+      <tr>
+        <td>Managed EDR on hosted VM</td>
+        <td>Sophos Intercept X with EDR + SmartSoft Tier-1 triage</td>
+        <td class="num">₹2,200</td>
+        <td class="num">₹0</td>
+        <td class="note">/ month / server</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- F. Savings -->
+  <h2>F. Savings vs PAYG / list pricing</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Azure VM — 1-Year RI</h3>
+      <p class="lead">Reserved Instance prepayment vs pay-as-you-go.</p>
+      <div class="kv"><span>Monthly saving</span><strong>₹12,500</strong></div>
+      <div class="kv"><span>Annual saving</span><strong>₹1,50,000</strong></div>
+      <div class="kv"><span>Term</span><strong>Locked 12 months</strong></div>
+    </div>
+    <div class="card">
+      <h3>RDS User CAL — bundle rate</h3>
+      <p class="lead">50% subsidised rate vs SPLA list (₹350 → ₹175), per user.</p>
+      <div class="kv"><span>Monthly saving</span><strong>₹175 / user</strong></div>
+      <div class="kv"><span>Annual saving</span><strong>₹2,100 / user</strong></div>
+      <div class="kv"><span>Scope</span><strong>Scales with user count</strong></div>
+    </div>
+    <div class="card">
+      <h3>3-Year RI option <span class="pill" style="font-size:.65rem">On request</span></h3>
+      <p class="lead">Additional saving over 1-year RI (illustrative).</p>
+      <div class="kv"><span>Monthly saving</span><strong>₹1,600</strong></div>
+      <div class="kv"><span>Annual saving</span><strong>₹19,200</strong></div>
+      <div class="kv"><span>Term</span><strong>36 months</strong></div>
+    </div>
+    <div class="card">
+      <h3>One-time setup — waived</h3>
+      <p class="lead">Introductory offer for new environments.</p>
+      <div class="kv"><span>List value</span><strong>₹55,000</strong></div>
+      <div class="kv"><span>Customer pays</span><strong>₹0</strong></div>
+      <div class="kv"><span>Validity</span><strong>Subject to PO date</strong></div>
+    </div>
+  </div>
+
+  <!-- Assumptions -->
+  <div class="notes">
+    <h3>Assumptions &amp; notes</h3>
+    <ul>
+      <li>Tally Prime / TallyPrime Server licences are <strong>client-supplied</strong> and not included.</li>
+      <li>GST (18% IGST) extra on all line items.</li>
+      <li>Azure pricing is indicative as of issue date; final quotation locked at PO. &gt; 5% movement in list price or USD/INR FX may trigger a refresh.</li>
+      <li>Minimum term: 12 months from go-live. Per-user count revisable upward at any time; downward at the next quarter.</li>
+      <li>Base sizing (D4s v5) is comfortable up to ~25 concurrent users. Larger user counts require a re-quote with a bigger VM.</li>
+      <li>The 50% RDS bundle rate is offered under SmartSoft's hosted-Tally package and is not transferable.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <span>SmartSoft · 29 years of trusted IT solutions</span>
+    <span class="no-print">Printable A4 · use browser Print → Save as PDF</span>
+    <span>sales@smartsoft.example · +91-XXXXX-XXXXX</span>
+  </footer>
+
+</div>
+</body>
+</html>

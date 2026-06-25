@@ -45,6 +45,7 @@ Scope qualifier in parentheses indicates the data slice the persona sees:
 | [client-requests](../power-platform/portal/pages/client-requests.liquid) | F *(all)* | F *(firm)* | E *(assigned)* | E *(own, upload only)* |
 | [documents](../power-platform/portal/pages/documents.liquid) | F *(all)* | F *(firm)* | E *(assigned)* | E\* *(own, upload only)* |
 | [launch-tally](../power-platform/portal/pages/launch-tally.liquid) | F | F | F *(assigned)* | — |
+| [team](../power-platform/portal/pages/team.liquid) | F *(read all firms)* | F *(own firm)* | — | — |
 | [teams](../power-platform/portal/pages/teams.liquid) | F | F *(firm)* | R *(firm)* | — |
 | [billing](../power-platform/portal/pages/billing.liquid) | F *(all)* | F *(firm)* | R *(firm)* | E *(own subscription)* |
 | [operator](../power-platform/portal/pages/operator.liquid) | F | — | — | — |

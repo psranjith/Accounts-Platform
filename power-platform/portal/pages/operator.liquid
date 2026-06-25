@@ -63,7 +63,7 @@
 <section class="op-panel is-active" data-panel="firms">
   <div class="op-panel-head">
     <h3>Tenant firms</h3>
-    <div><button class="btn btn-primary" type="button">+ Onboard firm</button></div>
+    <div><button class="btn btn-primary" type="button" id="opOnboardFirmBtn">+ Onboard firm</button></div>
   </div>
   <table class="table">
     <thead><tr><th>Firm</th><th>Plan</th><th>Clients</th><th>Accountants</th><th>Status</th><th>Onboarded</th><th></th></tr></thead>
@@ -76,7 +76,7 @@
         <td>{{ f.adp_accountants }}</td>
         <td><span class="badge badge-{{ f.adp_status.label | downcase }}">{{ f.adp_status.label }}</span></td>
         <td>{{ f.adp_createdon }}</td>
-        <td><a href="#" class="btn btn-link" data-firm="{{ f.adp_firmid }}">Manage</a></td>
+        <td><a href="/operator?firm={{ f.adp_firmid }}#manage" class="btn btn-link op-firm-manage" data-firm="{{ f.adp_firmid }}" data-name="{{ f.adp_name }}">Manage</a></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -140,6 +140,46 @@
   document.querySelectorAll('.op-tab').forEach(function(a){
     a.addEventListener('click', function(e){ e.preventDefault(); history.replaceState(null,'',a.getAttribute('href')); activate(a.getAttribute('href')); });
   });
+
+  var onboardBtn = document.getElementById('opOnboardFirmBtn');
+  var onboardDlg = document.getElementById('opOnboardFirmDialog');
+  if (onboardBtn && onboardDlg && typeof onboardDlg.showModal === 'function') {
+    onboardBtn.addEventListener('click', function(){ onboardDlg.showModal(); });
+  } else if (onboardBtn) {
+    onboardBtn.addEventListener('click', function(){ alert('Onboard firm (preview): dialog API not supported in this browser.'); });
+  }
+
+  var manageDlg = document.getElementById('opManageFirmDialog');
+  var manageName = document.getElementById('opManageFirmName');
+  document.querySelectorAll('.op-firm-manage').forEach(function(a){
+    a.addEventListener('click', function(e){
+      if (!manageDlg || typeof manageDlg.showModal !== 'function') return;
+      e.preventDefault();
+      if (manageName) manageName.textContent = a.getAttribute('data-name') || '';
+      manageDlg.setAttribute('data-firm', a.getAttribute('data-firm') || '');
+      manageDlg.showModal();
+    });
+  });
+
+  document.querySelectorAll('[data-close]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var dlg = b.closest('dialog'); if (dlg) dlg.close();
+    });
+  });
+
+  window.ADPOnboardFirm = window.ADPOnboardFirm || function (form) {
+    var fd = new FormData(form);
+    var payload = {
+      name: fd.get('name'),
+      country: fd.get('country'),
+      plan: fd.get('plan'),
+      firmAdminName: fd.get('firmAdminName'),
+      firmAdminEmail: fd.get('firmAdminEmail')
+    };
+    alert('Firm onboarded (preview):\n' + JSON.stringify(payload, null, 2));
+    form.reset();
+    if (onboardDlg) onboardDlg.close();
+  };
   activate(location.hash);
 })();
 </script>
@@ -173,6 +213,17 @@
   .badge-plan-standard               { background:#e0e7ff; color:#3730a3; }
   .adp-restricted { padding:32px; background:#fff3cd; border:1px solid #f5d597; border-radius:8px; }
   .adp-restricted h3 { margin-top:0; color:#856404; }
+  .op-modal { border:1px solid #e1e6ec; border-radius:8px; padding:0; width:min(560px, 92vw); }
+  .op-modal::backdrop { background:rgba(0,57,94,.4); }
+  .op-modal-form { display:flex; flex-direction:column; gap:10px; padding:18px; }
+  .op-modal-form header h3 { margin:0 0 4px; color:#00395E; }
+  .op-modal-form label { display:flex; flex-direction:column; font-size:12px; color:#374151; font-weight:600; }
+  .op-modal-form input, .op-modal-form select { margin-top:4px; padding:7px 10px; border:1px solid #e1e6ec; border-radius:6px; font-size:14px; font-weight:400; }
+  .op-modal-fieldset { border:1px dashed #cbd5e1; border-radius:6px; padding:10px; display:flex; flex-direction:column; gap:8px; }
+  .op-modal-fieldset legend { padding:0 6px; font-size:12px; color:#00395E; }
+  .op-modal-form footer { display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+  .op-manage-actions { list-style:none; padding:0; margin:0; }
+  .op-manage-actions li { padding:8px 0; border-bottom:1px solid #e1e6ec; }
 </style>
 
 {% endif %}

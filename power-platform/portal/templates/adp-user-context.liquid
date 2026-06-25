@@ -11,18 +11,28 @@
 {% assign adp_firmname = adp_firmname | default: '' %}
 {% assign adp_firmid = adp_firmid | default: '' %}
 {% assign adp_personagroup = adp_personagroup | default: '' %}
+{% assign adp_jobfunction = adp_jobfunction | default: '' %}
+{% assign adp_status = adp_status | default: '' %}
+{% assign adp_appuserid = adp_appuserid | default: '' %}
 
 {% if user.id %}
   {% fetchxml userctx %}
   <fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="1">
     <entity name="adp_appuser">
+      <attribute name="adp_appuserid" />
       <attribute name="adp_companyid" />
+      <attribute name="adp_firmid" />
       <attribute name="adp_role" />
+      <attribute name="adp_jobfunction" />
+      <attribute name="adp_status" />
       <filter>
         <condition attribute="adp_entraobjectid" operator="eq" value="{{ user.identity_provider_object_id }}" />
       </filter>
       <link-entity name="adp_company" from="adp_companyid" to="adp_companyid" alias="company">
         <attribute name="adp_sharepointsiteurl" />
+      </link-entity>
+      <link-entity name="adp_firm" from="adp_firmid" to="adp_firmid" alias="firm">
+        <attribute name="adp_name" />
       </link-entity>
     </entity>
   </fetch>
@@ -30,27 +40,54 @@
 
   {% if userctx.results.entities.size > 0 %}
     {% assign u = userctx.results.entities[0] %}
+    {% assign adp_appuserid = u.adp_appuserid %}
     {% assign adp_companyid = u.adp_companyid.id %}
-    {% assign adp_role = u.adp_role.label %}
+    {% assign adp_firmid = u.adp_firmid.id %}
+    {% assign adp_role = u.adp_role.label | default: u.adp_role %}
+    {% assign adp_jobfunction = u.adp_jobfunction.label | default: u.adp_jobfunction | downcase %}
+    {% assign adp_status = u.adp_status.label | default: u.adp_status %}
     {% assign adp_sharepointsiteurl = u['company.adp_sharepointsiteurl'] %}
+    {% assign adp_firmname = u['firm.adp_name'] %}
+
+    {% comment %} First sign-in promotion: Pending -> Active. {% endcomment %}
+    {% if adp_status == 'Pending' and parameters.adp_FirstLoginPromoteUrl %}
+      {% capture promote_body %}{"appUserId":"{{ adp_appuserid }}"}{% endcapture %}
+      {% assign __ = '' %}
+      <!-- Fire-and-forget promotion (handled client-side to avoid blocking render). -->
+      <script>
+        (function(){
+          try {
+            fetch({{ parameters.adp_FirstLoginPromoteUrl | json }}, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: {{ promote_body | json }},
+              keepalive: true
+            });
+          } catch (e) { /* no-op */ }
+        })();
+      </script>
+    {% endif %}
   {% endif %}
 {% endif %}
 
 {% comment %}
-  Derive persona group from role label so the shell can render the right nav
-  without each page having to know about all role labels.
-  Roles today: 'ADP Admin', 'ADP Accountant', 'ADP Client User'.
-  New (preview only): 'Smartsoft Operator', 'Firm Admin'.
+  Derive persona group from adp_jobfunction (preferred) and fall back to role
+  label. Job function is a controlled choice on adp_appuser:
+    operator | firmadmin | accountant | client
 {% endcomment %}
 {% if adp_personagroup == '' %}
-  {% assign __r = adp_role | downcase %}
-  {% if __r contains 'operator' or __r contains 'smartsoft' %}{% assign adp_personagroup = 'operator' %}
-  {% elsif __r contains 'firm admin' or __r contains 'firmadmin' %}{% assign adp_personagroup = 'firmadmin' %}
-  {% elsif __r contains 'admin' %}{% assign adp_personagroup = 'firmadmin' %}
-  {% elsif __r contains 'accountant' %}{% assign adp_personagroup = 'accountant' %}
-  {% elsif __r contains 'client' %}{% assign adp_personagroup = 'client' %}
-  {% else %}{% assign adp_personagroup = 'client' %}
+  {% assign __jf = adp_jobfunction | downcase %}
+  {% if __jf == 'operator' or __jf == 'firmadmin' or __jf == 'accountant' or __jf == 'client' %}
+    {% assign adp_personagroup = __jf %}
+  {% else %}
+    {% assign __r = adp_role | downcase %}
+    {% if __r contains 'operator' or __r contains 'smartsoft' %}{% assign adp_personagroup = 'operator' %}
+    {% elsif __r contains 'firm admin' or __r contains 'firmadmin' %}{% assign adp_personagroup = 'firmadmin' %}
+    {% elsif __r contains 'accountant' %}{% assign adp_personagroup = 'accountant' %}
+    {% elsif __r contains 'client' %}{% assign adp_personagroup = 'client' %}
+    {% else %}{% assign adp_personagroup = 'client' %}
+    {% endif %}
   {% endif %}
 {% endif %}
 
-{% if adp_firmname == '' %}{% assign adp_firmname = 'Smartsoft Books LLP' %}{% endif %}
+{% if adp_firmname == '' %}{% assign adp_firmname = 'Your Firm' %}{% endif %}

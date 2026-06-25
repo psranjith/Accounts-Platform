@@ -90,9 +90,12 @@
         {% elsif adp_personagroup == 'firmadmin' %}
           <a class="adp-nav-item {% if nav_key == 'dashboard' %}is-active{% endif %}" href="/dashboard">       <span class="ico">&#127968;</span><span>Dashboard</span></a>
           <a class="adp-nav-item {% if nav_key == 'clients' %}is-active{% endif %}"   href="/clients">         <span class="ico">&#127970;</span><span>Clients</span></a>
-          <a class="adp-nav-item {% if nav_key == 'team' %}is-active{% endif %}"      href="/clients#team">    <span class="ico">&#128101;</span><span>Team</span></a>
+          <a class="adp-nav-item {% if nav_key == 'team' %}is-active{% endif %}"      href="/team">    <span class="ico">&#128101;</span><span>Team</span></a>
           <a class="adp-nav-item {% if nav_key == 'inbox' %}is-active{% endif %}"     href="/inbox">           <span class="ico">&#128231;</span><span>Inbox</span></a>
           <a class="adp-nav-item {% if nav_key == 'service' %}is-active{% endif %}"   href="/service-delivery"><span class="ico">&#128203;</span><span>Service Delivery</span></a>
+          <a class="adp-nav-item {% if nav_key == 'monthly-close' %}is-active{% endif %}" href="/monthly-close"><span class="ico">&#128260;</span><span>Monthly Close</span></a>
+          <a class="adp-nav-item {% if nav_key == 'accounting' %}is-active{% endif %}" href="/accounting">      <span class="ico">&#129518;</span><span>Accounting</span></a>
+          <a class="adp-nav-item {% if nav_key == 'compliance' %}is-active{% endif %}" href="/important-dates"><span class="ico">&#128197;</span><span>Important Dates</span></a>
           <a class="adp-nav-item {% if nav_key == 'audit' %}is-active{% endif %}"     href="/audit">           <span class="ico">&#128269;</span><span>Audit</span></a>
           <a class="adp-nav-item {% if nav_key == 'insights' %}is-active{% endif %}"  href="/insights">        <span class="ico">&#128200;</span><span>Insights</span></a>
           <a class="adp-nav-item {% if nav_key == 'agents' %}is-active{% endif %}"    href="/agents">          <span class="ico">&#129302;</span><span>Agents</span></a>
@@ -104,6 +107,9 @@
           <a class="adp-nav-item {% if nav_key == 'clients' %}is-active{% endif %}"        href="/clients">       <span class="ico">&#127970;</span><span>Clients</span></a>
           <a class="adp-nav-item {% if nav_key == 'inbox' %}is-active{% endif %}"          href="/inbox">         <span class="ico">&#128231;</span><span>Inbox</span></a>
           <a class="adp-nav-item {% if nav_key == 'service' %}is-active{% endif %}"        href="/service-delivery"><span class="ico">&#128203;</span><span>Service Delivery</span></a>
+          <a class="adp-nav-item {% if nav_key == 'monthly-close' %}is-active{% endif %}"  href="/monthly-close">   <span class="ico">&#128260;</span><span>Monthly Close</span></a>
+          <a class="adp-nav-item {% if nav_key == 'accounting' %}is-active{% endif %}"     href="/accounting">      <span class="ico">&#129518;</span><span>Accounting</span></a>
+          <a class="adp-nav-item {% if nav_key == 'compliance' %}is-active{% endif %}"     href="/important-dates"><span class="ico">&#128197;</span><span>Important Dates</span></a>
           <a class="adp-nav-item {% if nav_key == 'audit' %}is-active{% endif %}"          href="/audit">         <span class="ico">&#128269;</span><span>Audit</span></a>
           <a class="adp-nav-item {% if nav_key == 'insights' %}is-active{% endif %}"       href="/insights">      <span class="ico">&#128200;</span><span>Insights</span></a>
           <a class="adp-nav-item {% if nav_key == 'documents' %}is-active{% endif %}"      href="/documents">     <span class="ico">&#128193;</span><span>Documents</span></a>
@@ -119,6 +125,7 @@
           <a class="adp-nav-item {% if nav_key == 'client-reports' %}is-active{% endif %}"     href="/insights">        <span class="ico">&#128200;</span><span>Reports</span></a>
           <a class="adp-nav-item {% if nav_key == 'audit' %}is-active{% endif %}"             href="/audit">           <span class="ico">&#128269;</span><span>Audit</span></a>
           <a class="adp-nav-item {% if nav_key == 'client-engagements' %}is-active{% endif %}" href="/service-delivery"><span class="ico">&#128203;</span><span>Engagements</span></a>
+          <a class="adp-nav-item {% if nav_key == 'monthly-close' %}is-active{% endif %}"      href="/monthly-close">   <span class="ico">&#128260;</span><span>Deliverables</span></a>
           <a class="adp-nav-item {% if nav_key == 'client-billing' %}is-active{% endif %}"     href="/billing">         <span class="ico">&#128179;</span><span>Subscription</span></a>
           <a class="adp-nav-item {% if nav_key == 'client-support' %}is-active{% endif %}"     href="/agents">          <span class="ico">&#128172;</span><span>Support</span></a>
         {% endif %}

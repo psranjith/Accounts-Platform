@@ -11,7 +11,7 @@
 
 - adx_entityname: adp_company
   adx_entitylogicalname: adp_company
-  adx_name: ADP Admin - Companies (Global)
+  adx_name: ADP Smartsoft Operator - Companies (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
@@ -19,7 +19,7 @@
   adx_delete: true
   adx_append: true
   adx_appendto: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_company
   adx_entitylogicalname: adp_company
@@ -47,7 +47,7 @@
 
 - adx_entityname: adp_appuser
   adx_entitylogicalname: adp_appuser
-  adx_name: ADP Admin - App Users (Global)
+  adx_name: ADP Smartsoft Operator - App Users (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
@@ -55,7 +55,7 @@
   adx_delete: true
   adx_append: true
   adx_appendto: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_appuser
   adx_entitylogicalname: adp_appuser
@@ -79,13 +79,13 @@
 
 - adx_entityname: adp_dataingestion
   adx_entitylogicalname: adp_dataingestion
-  adx_name: ADP Admin - Inbox (Global)
+  adx_name: ADP Smartsoft Operator - Inbox (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
   adx_write: true
   adx_delete: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_dataingestion
   adx_entitylogicalname: adp_dataingestion
@@ -110,13 +110,13 @@
 
 - adx_entityname: adp_tallysession
   adx_entitylogicalname: adp_tallysession
-  adx_name: ADP Admin - Tally Sessions (Global)
+  adx_name: ADP Smartsoft Operator - Tally Sessions (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
   adx_write: true
   adx_delete: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_tallysession
   adx_entitylogicalname: adp_tallysession
@@ -141,20 +141,20 @@
 
 - adx_entityname: adp_auditlog
   adx_entitylogicalname: adp_auditlog
-  adx_name: ADP Admin - Audit Log (Read)
+  adx_name: ADP Smartsoft Operator - Audit Log (Read)
   adx_scope: Global
   adx_read: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_powerbireport
   adx_entitylogicalname: adp_powerbireport
-  adx_name: ADP Admin - PowerBI Reports (Global)
+  adx_name: ADP Smartsoft Operator - PowerBI Reports (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
   adx_write: true
   adx_delete: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_powerbireport
   adx_entitylogicalname: adp_powerbireport
@@ -178,19 +178,19 @@
 
 - adx_entityname: adp_config
   adx_entitylogicalname: adp_config
-  adx_name: ADP Admin - Config (Global)
+  adx_name: ADP Smartsoft Operator - Config (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
   adx_write: true
   adx_delete: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 # ===== Audit module (statutory + GST + internal) =====================
 
 - adx_entityname: adp_auditengagement
   adx_entitylogicalname: adp_auditengagement
-  adx_name: ADP Admin - Audit Engagements (Global)
+  adx_name: ADP Smartsoft Operator - Audit Engagements (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
@@ -198,7 +198,7 @@
   adx_delete: true
   adx_append: true
   adx_appendto: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_auditengagement
   adx_entitylogicalname: adp_auditengagement
@@ -225,13 +225,13 @@
 
 - adx_entityname: adp_workpaper
   adx_entitylogicalname: adp_workpaper
-  adx_name: ADP Admin - Workpapers (Global)
+  adx_name: ADP Smartsoft Operator - Workpapers (Global)
   adx_scope: Global
   adx_create: true
   adx_read: true
   adx_write: true
   adx_delete: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_workpaper
   adx_entitylogicalname: adp_workpaper
@@ -299,12 +299,12 @@
 
 - adx_entityname: adp_review
   adx_entitylogicalname: adp_review
-  adx_name: ADP Admin - Reviews (Reviewer/Partner Sign-off)
+  adx_name: ADP Smartsoft Operator - Reviews (Reviewer/Partner Sign-off)
   adx_scope: Global
   adx_create: true
   adx_read: true
   adx_write: true
-  adx_webroles: [ADP Admin]
+  adx_webroles: [ADP Smartsoft Operator]
 
 - adx_entityname: adp_clientrequest
   adx_entitylogicalname: adp_clientrequest
@@ -333,14 +333,14 @@
   adx_name: ADP - Audit Program Catalog (Global Read)
   adx_scope: Global
   adx_read: true
-  adx_webroles: [ADP Admin, ADP Accountant]
+  adx_webroles: [ADP Smartsoft Operator, ADP Firm Admin, ADP Accountant]
 
 - adx_entityname: adp_auditprocedure
   adx_entitylogicalname: adp_auditprocedure
   adx_name: ADP - Audit Procedure Library (Global Read)
   adx_scope: Global
   adx_read: true
-  adx_webroles: [ADP Admin, ADP Accountant]
+  adx_webroles: [ADP Smartsoft Operator, ADP Firm Admin, ADP Accountant]
 
 - adx_entityname: adp_auditlog
   adx_entitylogicalname: adp_auditlog
@@ -350,3 +350,133 @@
   adx_parentrelationship: adp_company_adp_auditlog
   adx_read: true
   adx_webroles: [ADP Accountant]
+
+# ===== Firm tenancy + Firm Admin user-management module =================
+# Adds adp_firm permissions and Firm-Admin-scoped permissions on
+# adp_appuser / adp_company / adp_companyassignment. The Firm Admin parent
+# anchor is `ADP Firm Admin - Own Firm`, scoped via adp_appuser.adp_firmid.
+
+- adx_entityname: adp_firm
+  adx_entitylogicalname: adp_firm
+  adx_name: ADP Smartsoft Operator - Firms (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Smartsoft Operator]
+
+- adx_entityname: adp_firm
+  adx_entitylogicalname: adp_firm
+  adx_name: ADP Firm Admin - Own Firm
+  adx_scope: Self
+  adx_create: false
+  adx_read: true
+  adx_write: true
+  adx_delete: false
+  adx_webroles: [ADP Firm Admin]
+
+- adx_entityname: adp_firm
+  adx_entitylogicalname: adp_firm
+  adx_name: ADP Accountant - Own Firm (Read)
+  adx_scope: Self
+  adx_read: true
+  adx_webroles: [ADP Accountant]
+
+- adx_entityname: adp_company
+  adx_entitylogicalname: adp_company
+  adx_name: ADP Firm Admin - Companies (Parent Firm)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Firm Admin - Own Firm
+  adx_parentrelationship: adp_firm_adp_company
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: false
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Firm Admin]
+
+- adx_entityname: adp_appuser
+  adx_entitylogicalname: adp_appuser
+  adx_name: ADP Firm Admin - Firm Users (Parent Firm)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Firm Admin - Own Firm
+  adx_parentrelationship: adp_firm_adp_appuser
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: false
+  adx_append: true
+  adx_appendto: true
+  adx_webroles: [ADP Firm Admin]
+
+- adx_entityname: adp_companyassignment
+  adx_entitylogicalname: adp_companyassignment
+  adx_name: ADP Smartsoft Operator - Company Assignments (Global)
+  adx_scope: Global
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_webroles: [ADP Smartsoft Operator]
+
+- adx_entityname: adp_companyassignment
+  adx_entitylogicalname: adp_companyassignment
+  adx_name: ADP Firm Admin - Company Assignments (Parent Firm)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Firm Admin - Own Firm
+  adx_parentrelationship: adp_firm_adp_companyassignment
+  adx_create: true
+  adx_read: true
+  adx_write: true
+  adx_delete: true
+  adx_webroles: [ADP Firm Admin]
+
+- adx_entityname: adp_companyassignment
+  adx_entitylogicalname: adp_companyassignment
+  adx_name: ADP Accountant - Own Assignments (Read)
+  adx_scope: Self
+  adx_read: true
+  adx_webroles: [ADP Accountant]
+
+# Firm Admin read-through on operational data via the Companies (Parent Firm) anchor.
+
+- adx_entityname: adp_dataingestion
+  adx_entitylogicalname: adp_dataingestion
+  adx_name: ADP Firm Admin - Inbox (Parent Firm)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Firm Admin - Companies (Parent Firm)
+  adx_parentrelationship: adp_company_adp_dataingestion
+  adx_read: true
+  adx_write: true
+  adx_webroles: [ADP Firm Admin]
+
+- adx_entityname: adp_tallysession
+  adx_entitylogicalname: adp_tallysession
+  adx_name: ADP Firm Admin - Tally Sessions (Parent Firm)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Firm Admin - Companies (Parent Firm)
+  adx_parentrelationship: adp_company_adp_tallysession
+  adx_read: true
+  adx_webroles: [ADP Firm Admin]
+
+- adx_entityname: adp_powerbireport
+  adx_entitylogicalname: adp_powerbireport
+  adx_name: ADP Firm Admin - Reports (Parent Firm)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Firm Admin - Companies (Parent Firm)
+  adx_parentrelationship: adp_company_adp_powerbireport
+  adx_read: true
+  adx_webroles: [ADP Firm Admin]
+
+- adx_entityname: adp_auditengagement
+  adx_entitylogicalname: adp_auditengagement
+  adx_name: ADP Firm Admin - Audit Engagements (Parent Firm)
+  adx_scope: Parent
+  adx_parenttablepermission: ADP Firm Admin - Companies (Parent Firm)
+  adx_parentrelationship: adp_company_adp_auditengagement
+  adx_read: true
+  adx_webroles: [ADP Firm Admin]

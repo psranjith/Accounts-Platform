@@ -12,13 +12,18 @@
   adx_webroleid: 8b9d8c99-b798-450d-adfd-f5bc21d53b76
 - adx_anonymoususersrole: false
   adx_authenticatedusersrole: false
-  adx_name: ADP Admin
-  adx_description: Full administrative access to all ADP companies, users, configuration, and audit logs.
+  adx_name: ADP Smartsoft Operator
+  adx_description: Smartsoft platform staff. Cross-firm administrative access to all firms, companies, users, catalog, configuration, and audit logs. (Renamed from "ADP Admin" — same GUID for backward compatibility.)
   adx_webroleid: a1adb1a1-0001-4adp-0001-000000000001
 - adx_anonymoususersrole: false
   adx_authenticatedusersrole: false
+  adx_name: ADP Firm Admin
+  adx_description: Firm administrator. Manages users, companies, and settings within their own firm (adp_firmid scope). Cannot see other firms.
+  adx_webroleid: a1adb1a1-0004-4adp-0004-000000000004
+- adx_anonymoususersrole: false
+  adx_authenticatedusersrole: false
   adx_name: ADP Accountant
-  adx_description: Accountant user. Read/write access to assigned client companies. Cannot manage tenant-wide settings.
+  adx_description: Accountant user. Read/write access to assigned client companies within their firm. Cannot manage tenant-wide or firm-wide settings.
   adx_webroleid: a1adb1a1-0002-4adp-0002-000000000002
 - adx_anonymoususersrole: false
   adx_authenticatedusersrole: false

@@ -210,6 +210,7 @@
           </div>
           <div class="sd-sc-actions">
             <button type="button" class="btn btn-link" data-act="run-now"  data-schedule="{{ s.adp_scheduleid }}" data-process="{{ s.adp_processid }}" data-process-name="{{ s.adp_processname }}">Run now</button>
+            <a class="btn btn-link" href="/monthly-close?company={{ s.adp_companyid.id }}&amp;processid={{ s.adp_processid }}">Open close run &rarr;</a>
             <button type="button" class="btn btn-link" data-act="snooze"   data-schedule="{{ s.adp_scheduleid }}">Snooze</button>
             {% if can_manage %}<button type="button" class="btn btn-link" data-act="reassign" data-schedule="{{ s.adp_scheduleid }}">Reassign</button>{% endif %}
           </div>
@@ -376,6 +377,7 @@
             <td class="actions">
               <button class="btn btn-link" type="button" data-act="open"     data-eng="{{ e.adp_engagementid }}">Open</button>
               <button class="btn btn-link" type="button" data-act="advance"  data-eng="{{ e.adp_engagementid }}">Advance</button>
+              <a class="btn btn-link" href="/monthly-close?company={{ e.adp_companyid.id }}&amp;processid={{ e.adp_processid }}">Close run</a>
               <button class="btn btn-link text-danger" type="button" data-act="cancel" data-eng="{{ e.adp_engagementid }}">Cancel</button>
             </td>
             {% endif %}

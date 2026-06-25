@@ -7,6 +7,9 @@ const PAGES = [
   { id: 'clients',          label: 'Clients (hub)',              file: '../power-platform/portal/pages/clients.liquid' },
   { id: 'inbox',            label: 'Inbox (Data Capture)',       file: '../power-platform/portal/pages/inbox.liquid' },
   { id: 'service-delivery', label: 'Service Delivery',           file: '../power-platform/portal/pages/service-delivery.liquid' },
+  { id: 'monthly-close',    label: 'Monthly Close (BPO)',         file: '../power-platform/portal/pages/monthly-close.liquid' },
+  { id: 'accounting',       label: 'Accounting Activities',       file: '../power-platform/portal/pages/accounting.liquid' },
+  { id: 'important-dates',  label: 'Important Dates',             file: '../power-platform/portal/pages/important-dates.liquid' },
   { id: 'insights',         label: 'Insights (Reports hub)',     file: '../power-platform/portal/pages/insights.liquid' },
   { id: 'agents',           label: 'Agents (incl. Smart Agent)', file: '../power-platform/portal/pages/agents.liquid' },
   { id: 'audit',            label: 'Audit (hub)',                file: '../power-platform/portal/pages/audit.liquid' },
@@ -16,20 +19,12 @@ const PAGES = [
   { id: 'client-requests',  label: 'Client requests (PBC)',      file: '../power-platform/portal/pages/client-requests.liquid' },
   { id: 'billing',          label: 'Billing (Plans + Subscription)', file: '../power-platform/portal/pages/billing.liquid' },
   { id: 'operator',         label: 'Operator Console (Smartsoft)', file: '../power-platform/portal/pages/operator.liquid' },
+  { id: 'team',             label: 'Team (Firm user mgmt)',      file: '../power-platform/portal/pages/team.liquid' },
   // ---- Secondary / utilities --------------------------------------------
   { id: 'documents',        label: 'Documents',                  file: '../power-platform/portal/pages/documents.liquid' },
   { id: 'launch-tally',     label: 'Launch Tally',               file: '../power-platform/portal/pages/launch-tally.liquid' },
   { id: 'teams',            label: 'Microsoft Teams',            file: '../power-platform/portal/pages/teams.liquid' },
-  { id: 'index',            label: 'Home (public landing)',      file: '../power-platform/portal/pages/index.liquid' },
-  // ---- Deprecated / redirect stubs (still linkable for bookmarks) -------
-  { id: 'companies',        label: 'Companies (→ Clients)',      file: '../power-platform/portal/pages/companies.liquid' },
-  { id: 'onboarding',       label: 'Onboarding (→ Clients)',     file: '../power-platform/portal/pages/onboarding.liquid' },
-  { id: 'reports',          label: 'Reports (→ Insights)',       file: '../power-platform/portal/pages/reports.liquid' },
-  { id: 'reports-company',  label: 'Reports — Company (→ Insights)', file: '../power-platform/portal/pages/reports-company.liquid' },
-  { id: 'report-powerbi',   label: 'PBI report (→ Insights)',    file: '../power-platform/portal/pages/report-powerbi.liquid' },
-  { id: 'assistant',        label: 'Assistant (→ Agents)',       file: '../power-platform/portal/pages/assistant.liquid' },
-  { id: 'pricing',          label: 'Pricing (→ Billing)',        file: '../power-platform/portal/pages/pricing.liquid' },
-  { id: 'subscription',     label: 'Subscription (→ Billing)',   file: '../power-platform/portal/pages/subscription.liquid' }
+  { id: 'index',            label: 'Home (public landing)',      file: '../power-platform/portal/pages/index.liquid' }
 ];
 
 const PARTIALS = {
@@ -112,12 +107,35 @@ engine.registerTag('powerbi', {
 function pickFetchXmlStub(varname, fetchXml, ctx) {
   if (/adp_appuser/i.test(fetchXml)) {
     const role = ctx.environments.__role || 'Accountant';
+    // Team-page query: returns a small firm team roster.
+    // Distinguished from the single-user context query (which filters by
+    // adp_entraobjectid) so the role selector keeps driving the persona.
+    if (/adp_jobfunction/i.test(fetchXml) && !/adp_entraobjectid/i.test(fetchXml)) {
+      return {
+        results: {
+          entities: [
+            { adp_appuserid: 'usr-001', adp_name: 'Priya Menon',  adp_email: 'priya@smartsoftbooks.in',  adp_jobfunction: 'firmadmin',  adp_role: 'ADP Firm Admin',  adp_status: 'Active',   adp_invitedon: '2024-08-20', adp_lastloginon: '2026-05-30', adp_firmid: { id: 'firm-001', name: 'Smartsoft Books LLP' } },
+            { adp_appuserid: 'usr-002', adp_name: 'Arjun Rao',    adp_email: 'arjun@smartsoftbooks.in',  adp_jobfunction: 'accountant', adp_role: 'ADP Accountant',  adp_status: 'Active',   adp_invitedon: '2024-09-02', adp_lastloginon: '2026-05-31', adp_firmid: { id: 'firm-001', name: 'Smartsoft Books LLP' } },
+            { adp_appuserid: 'usr-003', adp_name: 'Neha Shah',    adp_email: 'neha@smartsoftbooks.in',   adp_jobfunction: 'accountant', adp_role: 'ADP Accountant',  adp_status: 'Active',   adp_invitedon: '2024-11-15', adp_lastloginon: '2026-05-29', adp_firmid: { id: 'firm-001', name: 'Smartsoft Books LLP' } },
+            { adp_appuserid: 'usr-004', adp_name: 'Vikram Singh', adp_email: 'vikram@smartsoftbooks.in', adp_jobfunction: 'accountant', adp_role: 'ADP Accountant',  adp_status: 'Pending',  adp_invitedon: '2026-05-25', adp_lastloginon: null,        adp_firmid: { id: 'firm-001', name: 'Smartsoft Books LLP' } },
+            { adp_appuserid: 'usr-005', adp_name: 'Meera Iyer',   adp_email: 'meera@smartsoftbooks.in',  adp_jobfunction: 'accountant', adp_role: 'ADP Accountant',  adp_status: 'Disabled', adp_invitedon: '2024-06-10', adp_lastloginon: '2025-12-04', adp_disabledon: '2026-01-15', adp_firmid: { id: 'firm-001', name: 'Smartsoft Books LLP' } },
+            { adp_appuserid: 'usr-006', adp_name: 'Aisha Khan',   adp_email: 'aisha@acmetraders.com',    adp_jobfunction: 'client',     adp_role: 'ADP Client User', adp_status: 'Active',   adp_invitedon: '2025-02-12', adp_lastloginon: '2026-05-28', adp_firmid: { id: 'firm-001', name: 'Smartsoft Books LLP' } }
+          ]
+        }
+      };
+    }
+    // Default single-user context query (adp-user-context.liquid).
     return {
       results: {
         entities: [{
+          adp_appuserid: 'usr-001',
           adp_companyid: { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' },
+          adp_firmid: { id: 'firm-001', name: 'Smartsoft Books LLP' },
           adp_role: { label: role, value: 1 },
-          'company.adp_sharepointsiteurl': 'https://intelliblend.sharepoint.com/sites/Smartsoft646'
+          adp_jobfunction: { label: (role || '').toLowerCase().includes('operator') ? 'operator' : (role || '').toLowerCase().includes('firm admin') ? 'firmadmin' : (role || '').toLowerCase().includes('client') ? 'client' : 'accountant' },
+          adp_status: { label: 'Active' },
+          'company.adp_sharepointsiteurl': 'https://intelliblend.sharepoint.com/sites/Smartsoft646',
+          'firm.adp_name': 'Smartsoft Books LLP'
         }]
       }
     };
@@ -453,6 +471,233 @@ function pickFetchXmlStub(varname, fetchXml, ctx) {
     ]}};
   }
 
+  // ============================================================================
+  // Accounting Activities & Compliance (accounting.liquid / important-dates.liquid)
+  // ============================================================================
+  // Accountant / Operator see the full portfolio; Firm Admin / Client are
+  // scoped to company 001 (mirrors the per-page company filter).
+  const ACC_C1 = { id: '00000000-0000-0000-0000-000000000001', name: 'Acme Traders Pvt Ltd' };
+  const ACC_C2 = { id: '00000000-0000-0000-0000-000000000002', name: 'Beta Industries' };
+  const ACC_C3 = { id: '00000000-0000-0000-0000-000000000003', name: 'Gamma Foods LLP' };
+  function accScope(rows, ctxObj) {
+    const role = ctxObj.environments.__role || 'Accountant';
+    const isPortfolio = role === 'Accountant' || role === 'Smartsoft Operator';
+    return isPortfolio ? rows : rows.filter(r => r.adp_companyid && r.adp_companyid.id === ACC_C1.id);
+  }
+
+  if (/<entity\s+name="adp_voucher"/i.test(fetchXml)) {
+    const all = [
+      { adp_voucherid: 'vch-p1', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Purchase' }, adp_date: '2026-05-26', adp_party: 'Sundar Steels Pvt Ltd', adp_reference: 'PINV-1187', adp_amount: '1,24,500', adp_status: { label: 'Posted' }, adp_narration: 'Raw material — MS plates' },
+      { adp_voucherid: 'vch-p2', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Purchase' }, adp_date: '2026-05-24', adp_party: 'Apex Packaging', adp_reference: 'PINV-1183', adp_amount: '38,200', adp_status: { label: 'Posted' }, adp_narration: 'Cartons & packing' },
+      { adp_voucherid: 'vch-s1', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Sales' }, adp_date: '2026-05-26', adp_party: 'Meridian Distributors', adp_reference: 'SINV-2207', adp_amount: '2,15,000', adp_status: { label: 'Posted' }, adp_narration: 'Finished goods dispatch' },
+      { adp_voucherid: 'vch-s2', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Sales' }, adp_date: '2026-05-23', adp_party: 'Citywide Retail', adp_reference: 'SINV-2203', adp_amount: '78,400', adp_status: { label: 'Posted' }, adp_narration: 'Counter sales' },
+      { adp_voucherid: 'vch-r1', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Receipt' }, adp_date: '2026-05-25', adp_party: 'Meridian Distributors', adp_reference: 'RCPT-560', adp_amount: '2,00,000', adp_status: { label: 'Posted' }, adp_narration: 'Against SINV-2190' },
+      { adp_voucherid: 'vch-pay1', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Payment' }, adp_date: '2026-05-25', adp_party: 'Sundar Steels Pvt Ltd', adp_reference: 'PAY-330', adp_amount: '1,00,000', adp_status: { label: 'Posted' }, adp_narration: 'Part payment PINV-1180' },
+      { adp_voucherid: 'vch-b1', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Bank' }, adp_date: '2026-05-25', adp_party: 'HDFC Bank — 4421', adp_reference: 'NEFT-99213', adp_amount: '2,00,000', adp_status: { label: 'Posted' }, adp_narration: 'Customer receipt credited' },
+      { adp_voucherid: 'vch-b2', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Bank' }, adp_date: '2026-05-24', adp_party: 'HDFC Bank — 4421', adp_reference: 'CHQ-771002', adp_amount: '1,00,000', adp_status: { label: 'Posted' }, adp_narration: 'Vendor payment cleared' },
+      { adp_voucherid: 'vch-j1', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Journal' }, adp_date: '2026-05-26', adp_party: 'Depreciation', adp_reference: 'JV-091', adp_amount: '24,750', adp_status: { label: 'Posted' }, adp_narration: 'Monthly depreciation provision' },
+      { adp_voucherid: 'vch-j2', adp_companyid: ACC_C1, adp_vouchertype: { label: 'Journal' }, adp_date: '2026-05-26', adp_party: 'Audit fees payable', adp_reference: 'JV-092', adp_amount: '15,000', adp_status: { label: 'Draft' }, adp_narration: 'Provision — to review' },
+      { adp_voucherid: 'vch-p3', adp_companyid: ACC_C2, adp_vouchertype: { label: 'Purchase' }, adp_date: '2026-05-25', adp_party: 'Orient Chemicals', adp_reference: 'PINV-77', adp_amount: '92,300', adp_status: { label: 'Posted' }, adp_narration: 'Solvents' },
+      { adp_voucherid: 'vch-s3', adp_companyid: ACC_C2, adp_vouchertype: { label: 'Sales' }, adp_date: '2026-05-24', adp_party: 'Pharma Junction', adp_reference: 'SINV-410', adp_amount: '1,46,000', adp_status: { label: 'Posted' }, adp_narration: 'Bulk supply' },
+      { adp_voucherid: 'vch-b3', adp_companyid: ACC_C2, adp_vouchertype: { label: 'Bank' }, adp_date: '2026-05-24', adp_party: 'ICICI Bank — 8890', adp_reference: 'IMPS-5521', adp_amount: '50,000', adp_status: { label: 'Posted' }, adp_narration: 'Supplier advance' },
+      { adp_voucherid: 'vch-s4', adp_companyid: ACC_C3, adp_vouchertype: { label: 'Sales' }, adp_date: '2026-05-23', adp_party: 'Freshmart', adp_reference: 'SINV-118', adp_amount: '64,800', adp_status: { label: 'Posted' }, adp_narration: 'Weekly order' }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_bankrecon"/i.test(fetchXml)) {
+    const all = [
+      { adp_bankreconid: 'br-1', adp_companyid: ACC_C1, adp_date: '2026-05-25', adp_particulars: 'NEFT from Meridian Distributors', adp_bookamount: '2,00,000', adp_bankamount: '2,00,000', adp_status: { label: 'Matched' } },
+      { adp_bankreconid: 'br-2', adp_companyid: ACC_C1, adp_date: '2026-05-24', adp_particulars: 'Cheque 771002 to Sundar Steels', adp_bookamount: '1,00,000', adp_bankamount: '1,00,000', adp_status: { label: 'Matched' } },
+      { adp_bankreconid: 'br-3', adp_companyid: ACC_C1, adp_date: '2026-05-22', adp_particulars: 'Bank charges (not in books)', adp_bookamount: '0', adp_bankamount: '1,180', adp_status: { label: 'Unreconciled' } },
+      { adp_bankreconid: 'br-4', adp_companyid: ACC_C1, adp_date: '2026-05-20', adp_particulars: 'Cheque 771000 — not presented', adp_bookamount: '45,000', adp_bankamount: '0', adp_status: { label: 'Unreconciled' } },
+      { adp_bankreconid: 'br-5', adp_companyid: ACC_C2, adp_date: '2026-05-23', adp_particulars: 'IMPS supplier advance', adp_bookamount: '50,000', adp_bankamount: '50,000', adp_status: { label: 'Matched' } },
+      { adp_bankreconid: 'br-6', adp_companyid: ACC_C2, adp_date: '2026-05-21', adp_particulars: 'Interest credited (not in books)', adp_bookamount: '0', adp_bankamount: '2,340', adp_status: { label: 'Unreconciled' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_gst2b"/i.test(fetchXml)) {
+    const all = [
+      { adp_gst2bid: 'b-1', adp_companyid: ACC_C1, adp_gstin: '29ABCDE1234F1Z5', adp_supplier: 'Sundar Steels Pvt Ltd', adp_invoiceno: 'PINV-1187', adp_invoicedate: '2026-05-26', adp_taxable: '1,05,508', adp_igst: '0', adp_cgst: '9,496', adp_sgst: '9,496', adp_matchstatus: { label: 'Matched' } },
+      { adp_gst2bid: 'b-2', adp_companyid: ACC_C1, adp_gstin: '27AAPCA9988K1ZP', adp_supplier: 'Apex Packaging', adp_invoiceno: 'AP-7741', adp_invoicedate: '2026-05-24', adp_taxable: '32,373', adp_igst: '5,827', adp_cgst: '0', adp_sgst: '0', adp_matchstatus: { label: 'Mismatch' } },
+      { adp_gst2bid: 'b-3', adp_companyid: ACC_C1, adp_gstin: '29AAGCT2233L1Z9', adp_supplier: 'Tristar Logistics', adp_invoiceno: 'TL-5520', adp_invoicedate: '2026-05-20', adp_taxable: '18,000', adp_igst: '3,240', adp_cgst: '0', adp_sgst: '0', adp_matchstatus: { label: 'Missing in Books' } },
+      { adp_gst2bid: 'b-4', adp_companyid: ACC_C1, adp_gstin: '29ABCDE1234F1Z5', adp_supplier: 'Orient Chemicals', adp_invoiceno: 'OC-2299', adp_invoicedate: '2026-05-18', adp_taxable: '40,000', adp_igst: '0', adp_cgst: '3,600', adp_sgst: '3,600', adp_matchstatus: { label: 'Missing in 2B' } },
+      { adp_gst2bid: 'b-5', adp_companyid: ACC_C2, adp_gstin: '27AAPCA9988K1ZP', adp_supplier: 'Orient Chemicals', adp_invoiceno: 'PINV-77', adp_invoicedate: '2026-05-25', adp_taxable: '78,220', adp_igst: '14,080', adp_cgst: '0', adp_sgst: '0', adp_matchstatus: { label: 'Matched' } },
+      { adp_gst2bid: 'b-6', adp_companyid: ACC_C2, adp_gstin: '27AAFCT7788M1ZQ', adp_supplier: 'BlueDart Express', adp_invoiceno: 'BD-9981', adp_invoicedate: '2026-05-19', adp_taxable: '6,500', adp_igst: '1,170', adp_cgst: '0', adp_sgst: '0', adp_matchstatus: { label: 'Mismatch' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_gstvariance"/i.test(fetchXml)) {
+    const all = [
+      { adp_gstvarianceid: 'gv-1', adp_companyid: ACC_C1, adp_section: 'ITC (Books vs 2B)', adp_period: 'May 2026', adp_booksamount: '22,192', adp_portalamount: '24,815', adp_variance: '-2,623', adp_status: { label: 'At Risk' } },
+      { adp_gstvarianceid: 'gv-2', adp_companyid: ACC_C1, adp_section: 'Outward (3B vs Books)', adp_period: 'May 2026', adp_booksamount: '52,812', adp_portalamount: '52,812', adp_variance: '0', adp_status: { label: 'On Track' } },
+      { adp_gstvarianceid: 'gv-3', adp_companyid: ACC_C2, adp_section: 'ITC (Books vs 2B)', adp_period: 'May 2026', adp_booksamount: '14,080', adp_portalamount: '15,250', adp_variance: '-1,170', adp_status: { label: 'At Risk' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_variancedoc"/i.test(fetchXml)) {
+    const all = [
+      { adp_variancedocid: 'vd-1', adp_companyid: ACC_C1, adp_name: 'AP-7741_supplier_invoice.pdf', adp_kind: 'Supplier invoice', adp_linkedto: 'PINV-1183 / 2B AP-7741', adp_uploadedon: '2026-05-26', adp_status: { label: 'Pending Review' } },
+      { adp_variancedocid: 'vd-2', adp_companyid: ACC_C1, adp_name: 'Tristar_LR_5520.pdf', adp_kind: 'Transport bill', adp_linkedto: '2B TL-5520 (missing in books)', adp_uploadedon: '2026-05-25', adp_status: { label: 'Pending Review' } },
+      { adp_variancedocid: 'vd-3', adp_companyid: ACC_C2, adp_name: 'BlueDart_BD9981_recon.xlsx', adp_kind: 'Reconciliation note', adp_linkedto: '2B BD-9981', adp_uploadedon: '2026-05-24', adp_status: { label: 'Resolved' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_tds"/i.test(fetchXml)) {
+    const all = [
+      { adp_tdsid: 't-1', adp_companyid: ACC_C1, adp_section: '194C', adp_deductee: 'Tristar Logistics', adp_pan: 'AAGCT2233L', adp_amountpaid: '18,000', adp_rate: '1', adp_tdsamount: '180', adp_status: { label: 'Deducted' } },
+      { adp_tdsid: 't-2', adp_companyid: ACC_C1, adp_section: '194J', adp_deductee: 'Nair & Associates', adp_pan: 'AABFN1122C', adp_amountpaid: '60,000', adp_rate: '10', adp_tdsamount: '6,000', adp_status: { label: 'Deposited' } },
+      { adp_tdsid: 't-3', adp_companyid: ACC_C1, adp_section: '194Q', adp_deductee: 'Sundar Steels Pvt Ltd', adp_pan: 'ABCDE1234F', adp_amountpaid: '12,45,000', adp_rate: '0.1', adp_tdsamount: '1,245', adp_status: { label: 'Pending' } },
+      { adp_tdsid: 't-4', adp_companyid: ACC_C2, adp_section: '194C', adp_deductee: 'BlueDart Express', adp_pan: 'AAFCT7788M', adp_amountpaid: '6,500', adp_rate: '1', adp_tdsamount: '65', adp_status: { label: 'Deducted' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_form26as"/i.test(fetchXml)) {
+    const all = [
+      { adp_form26asid: 'f-1', adp_companyid: ACC_C1, adp_deductor: 'Meridian Distributors', adp_tan: 'MUMM12345A', adp_section: '194Q', adp_amount: '21,50,000', adp_taxcredit: '2,150', adp_status: { label: 'Matched' } },
+      { adp_form26asid: 'f-2', adp_companyid: ACC_C1, adp_deductor: 'Citywide Retail', adp_tan: 'BLRC54321B', adp_section: '194Q', adp_amount: '7,84,000', adp_taxcredit: '784', adp_status: { label: 'Mismatch' } },
+      { adp_form26asid: 'f-3', adp_companyid: ACC_C2, adp_deductor: 'Pharma Junction', adp_tan: 'DELP99887C', adp_section: '194Q', adp_amount: '14,60,000', adp_taxcredit: '1,460', adp_status: { label: 'Matched' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_ais"/i.test(fetchXml)) {
+    const all = [
+      { adp_aisid: 'a-1', adp_companyid: ACC_C1, adp_category: 'GST turnover', adp_source: 'GSTN', adp_amount: '52,81,200', adp_status: { label: 'Reconciled' } },
+      { adp_aisid: 'a-2', adp_companyid: ACC_C1, adp_category: 'Interest income', adp_source: 'HDFC Bank', adp_amount: '38,400', adp_status: { label: 'To Review' } },
+      { adp_aisid: 'a-3', adp_companyid: ACC_C1, adp_category: 'TDS deducted', adp_source: 'Income Tax Dept', adp_amount: '2,934', adp_status: { label: 'Reconciled' } },
+      { adp_aisid: 'a-4', adp_companyid: ACC_C2, adp_category: 'Cash deposits', adp_source: 'ICICI Bank', adp_amount: '1,20,000', adp_status: { label: 'To Review' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_payroll"/i.test(fetchXml)) {
+    const all = [
+      { adp_payrollid: 'pr-1', adp_companyid: ACC_C1, adp_employee: 'Anil Kumar', adp_gross: '48,000', adp_deductions: '6,560', adp_net: '41,440', adp_status: { label: 'Processed' } },
+      { adp_payrollid: 'pr-2', adp_companyid: ACC_C1, adp_employee: 'Sunita Rao', adp_gross: '36,000', adp_deductions: '5,160', adp_net: '30,840', adp_status: { label: 'Processed' } },
+      { adp_payrollid: 'pr-3', adp_companyid: ACC_C1, adp_employee: 'Imran Shaikh', adp_gross: '28,000', adp_deductions: '4,270', adp_net: '23,730', adp_status: { label: 'Pending' } },
+      { adp_payrollid: 'pr-4', adp_companyid: ACC_C2, adp_employee: 'Lata Menon', adp_gross: '52,000', adp_deductions: '6,240', adp_net: '45,760', adp_status: { label: 'Processed' } }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_esi"/i.test(fetchXml)) {
+    const all = [
+      { adp_esiid: 'e-1', adp_companyid: ACC_C1, adp_employee: 'Imran Shaikh', adp_wages: '21,000', adp_eecontrib: '158', adp_ercontrib: '683' },
+      { adp_esiid: 'e-2', adp_companyid: ACC_C1, adp_employee: 'Sunita Rao', adp_wages: '21,000', adp_eecontrib: '158', adp_ercontrib: '683' },
+      { adp_esiid: 'e-3', adp_companyid: ACC_C2, adp_employee: 'Ramesh Pillai', adp_wages: '19,500', adp_eecontrib: '146', adp_ercontrib: '634' }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_pf"/i.test(fetchXml)) {
+    const all = [
+      { adp_pfid: 'p-1', adp_companyid: ACC_C1, adp_employee: 'Anil Kumar', adp_basic: '24,000', adp_eepf: '2,880', adp_erpf: '2,880', adp_eps: '1,250' },
+      { adp_pfid: 'p-2', adp_companyid: ACC_C1, adp_employee: 'Sunita Rao', adp_basic: '18,000', adp_eepf: '2,160', adp_erpf: '2,160', adp_eps: '1,250' },
+      { adp_pfid: 'p-3', adp_companyid: ACC_C2, adp_employee: 'Lata Menon', adp_basic: '26,000', adp_eepf: '3,120', adp_erpf: '3,120', adp_eps: '1,250' }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  // ==========================================================================
+  // Monthly Close (BPO) — orchestration layer over service-delivery + accounting
+  // ==========================================================================
+  // A "close run" is one productised accounting service (e.g. GST Return,
+  // Monthly Book Closure, Payroll) for one client company + period. It carries
+  // SLA/TAT, maker-checker sign-off, client deliverables and billing status.
+  // Each run is linked to a service-delivery engagement (adp_engagementid) and
+  // its steps deep-link into the accounting workspace (accountingtab).
+  const ACC_C4 = { id: '00000000-0000-0000-0000-000000000004', name: 'Delta Logistics' };
+
+  if (/<entity\s+name="adp_closerun"/i.test(fetchXml)) {
+    const all = [
+      { adp_closerunid: 'cr-001', adp_companyid: ACC_C1, adp_period: 'May 2026', adp_processid: 'svc-close', adp_processname: 'Monthly Book Closure', adp_engagementid: 'eng-002', adp_stage: { label: 'Review' }, adp_status: { label: 'At Risk' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_partnername: 'Anand Iyer', adp_startdate: '2026-05-05', adp_duedate: '2026-06-05', adp_sladays: 10, adp_slastatus: { label: 'At Risk' }, adp_tatdays: 8, adp_progress: 80, adp_billstatus: { label: 'Draft' }, adp_billamount: '18,000' },
+      { adp_closerunid: 'cr-002', adp_companyid: ACC_C1, adp_period: 'May 2026', adp_processid: 'svc-gst', adp_processname: 'GST Return (Monthly)', adp_engagementid: 'eng-001', adp_stage: { label: 'Reconciliation' }, adp_status: { label: 'On Track' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Anand Iyer', adp_partnername: 'Anand Iyer', adp_startdate: '2026-06-01', adp_duedate: '2026-06-11', adp_sladays: 5, adp_slastatus: { label: 'On time' }, adp_tatdays: 2, adp_progress: 45, adp_billstatus: { label: 'Not billable' }, adp_billamount: '6,000' },
+      { adp_closerunid: 'cr-003', adp_companyid: ACC_C2, adp_period: 'May 2026', adp_processid: 'svc-payroll', adp_processname: 'Payroll Run', adp_engagementid: 'eng-003', adp_stage: { label: 'Data Entry' }, adp_status: { label: 'On Track' }, adp_preparername: 'Aisha Khan', adp_reviewername: 'Rahul Mehta', adp_partnername: 'Anand Iyer', adp_startdate: '2026-05-28', adp_duedate: '2026-06-03', adp_sladays: 3, adp_slastatus: { label: 'At Risk' }, adp_tatdays: 4, adp_progress: 20, adp_billstatus: { label: 'Not billable' }, adp_billamount: '4,500' },
+      { adp_closerunid: 'cr-004', adp_companyid: ACC_C3, adp_period: 'May 2026', adp_processid: 'svc-bank', adp_processname: 'Bank Reconciliation', adp_engagementid: 'eng-004', adp_stage: { label: 'Client Sign-off' }, adp_status: { label: 'On Track' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Rahul Mehta', adp_partnername: 'Anand Iyer', adp_startdate: '2026-05-22', adp_duedate: '2026-05-30', adp_sladays: 4, adp_slastatus: { label: 'On time' }, adp_tatdays: 3, adp_progress: 95, adp_billstatus: { label: 'Draft' }, adp_billamount: '5,000' },
+      { adp_closerunid: 'cr-005', adp_companyid: ACC_C4, adp_period: 'Apr 2026', adp_processid: 'svc-close', adp_processname: 'Monthly Book Closure', adp_engagementid: 'eng-005', adp_stage: { label: 'Billed' }, adp_status: { label: 'Complete' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_partnername: 'Anand Iyer', adp_startdate: '2026-05-02', adp_duedate: '2026-05-12', adp_sladays: 10, adp_slastatus: { label: 'On time' }, adp_tatdays: 9, adp_progress: 100, adp_billstatus: { label: 'Invoiced' }, adp_billamount: '18,000' },
+      { adp_closerunid: 'cr-006', adp_companyid: ACC_C2, adp_period: 'Apr 2026', adp_processid: 'svc-gst', adp_processname: 'GST Return (Monthly)', adp_engagementid: 'eng-006', adp_stage: { label: 'Billed' }, adp_status: { label: 'Complete' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Anand Iyer', adp_partnername: 'Anand Iyer', adp_startdate: '2026-05-01', adp_duedate: '2026-05-11', adp_sladays: 5, adp_slastatus: { label: 'Breached' }, adp_tatdays: 7, adp_progress: 100, adp_billstatus: { label: 'Paid' }, adp_billamount: '6,000' }
+    ];
+    const m = fetchXml.match(/adp_closerunid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (m) return { results: { entities: all.filter(r => r.adp_closerunid === m[1]) } };
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_closestep"/i.test(fetchXml)) {
+    const all = [
+      // cr-001 Monthly Book Closure
+      { adp_closestepid: 'cs-001', adp_closerunid: 'cr-001', adp_seq: 1, adp_stepname: 'Post purchase & sales vouchers', adp_accountingtab: 'entries', adp_status: { label: 'Done' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_checkstatus: { label: 'Approved' }, adp_completedon: '2026-05-26' },
+      { adp_closestepid: 'cs-002', adp_closerunid: 'cr-001', adp_seq: 2, adp_stepname: 'Receipts, payments & journals', adp_accountingtab: 'entries', adp_status: { label: 'Done' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_checkstatus: { label: 'Approved' }, adp_completedon: '2026-05-27' },
+      { adp_closestepid: 'cs-003', adp_closerunid: 'cr-001', adp_seq: 3, adp_stepname: 'Bank reconciliation', adp_accountingtab: 'recon', adp_status: { label: 'Done' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_checkstatus: { label: 'Submitted' }, adp_completedon: '2026-05-28' },
+      { adp_closestepid: 'cs-004', adp_closerunid: 'cr-001', adp_seq: 4, adp_stepname: 'GST 2B reconciliation & variance', adp_accountingtab: 'gst', adp_status: { label: 'In Progress' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      { adp_closestepid: 'cs-005', adp_closerunid: 'cr-001', adp_seq: 5, adp_stepname: 'TDS & tax review', adp_accountingtab: 'tds', adp_status: { label: 'Not Started' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      { adp_closestepid: 'cs-006', adp_closerunid: 'cr-001', adp_seq: 6, adp_stepname: 'Finalise trial balance & provisions', adp_accountingtab: 'entries', adp_status: { label: 'Not Started' }, adp_preparername: 'Rahul Mehta', adp_reviewername: 'Priya Sharma', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      // cr-002 GST Return
+      { adp_closestepid: 'cs-101', adp_closerunid: 'cr-002', adp_seq: 1, adp_stepname: 'Import purchase register', adp_accountingtab: 'entries', adp_status: { label: 'Done' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Anand Iyer', adp_checkstatus: { label: 'Approved' }, adp_completedon: '2026-06-02' },
+      { adp_closestepid: 'cs-102', adp_closerunid: 'cr-002', adp_seq: 2, adp_stepname: 'GSTR-2B reconciliation', adp_accountingtab: 'gst', adp_status: { label: 'In Progress' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Anand Iyer', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      { adp_closestepid: 'cs-103', adp_closerunid: 'cr-002', adp_seq: 3, adp_stepname: 'GSTR-1 preparation', adp_accountingtab: 'gst', adp_status: { label: 'Not Started' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Anand Iyer', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      { adp_closestepid: 'cs-104', adp_closerunid: 'cr-002', adp_seq: 4, adp_stepname: 'GSTR-3B preparation & filing', adp_accountingtab: 'gst', adp_status: { label: 'Not Started' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Anand Iyer', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      // cr-003 Payroll
+      { adp_closestepid: 'cs-201', adp_closerunid: 'cr-003', adp_seq: 1, adp_stepname: 'Collect attendance & LOP', adp_accountingtab: 'payroll', adp_status: { label: 'In Progress' }, adp_preparername: 'Aisha Khan', adp_reviewername: 'Rahul Mehta', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      { adp_closestepid: 'cs-202', adp_closerunid: 'cr-003', adp_seq: 2, adp_stepname: 'Compute PF / ESI / PT', adp_accountingtab: 'payroll', adp_status: { label: 'Not Started' }, adp_preparername: 'Aisha Khan', adp_reviewername: 'Rahul Mehta', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      { adp_closestepid: 'cs-203', adp_closerunid: 'cr-003', adp_seq: 3, adp_stepname: 'Generate payslips & disbursal advice', adp_accountingtab: 'payroll', adp_status: { label: 'Not Started' }, adp_preparername: 'Aisha Khan', adp_reviewername: 'Rahul Mehta', adp_checkstatus: { label: 'Maker' }, adp_completedon: '' },
+      // cr-004 Bank Reconciliation
+      { adp_closestepid: 'cs-301', adp_closerunid: 'cr-004', adp_seq: 1, adp_stepname: 'Import bank statement', adp_accountingtab: 'recon', adp_status: { label: 'Done' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Rahul Mehta', adp_checkstatus: { label: 'Approved' }, adp_completedon: '2026-05-26' },
+      { adp_closestepid: 'cs-302', adp_closerunid: 'cr-004', adp_seq: 2, adp_stepname: 'Match & clear unreconciled items', adp_accountingtab: 'recon', adp_status: { label: 'Done' }, adp_preparername: 'Priya Sharma', adp_reviewername: 'Rahul Mehta', adp_checkstatus: { label: 'Approved' }, adp_completedon: '2026-05-28' }
+    ];
+    const m = fetchXml.match(/adp_closerunid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (m) return { results: { entities: all.filter(s => s.adp_closerunid === m[1]) } };
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_deliverable"/i.test(fetchXml)) {
+    const all = [
+      { adp_deliverableid: 'dl-001', adp_closerunid: 'cr-001', adp_companyid: ACC_C1, adp_name: 'Trial Balance — May 2026.pdf', adp_kind: 'Trial balance', adp_status: { label: 'Ready' }, adp_sharedon: '', adp_signedon: '', adp_url: '#' },
+      { adp_deliverableid: 'dl-002', adp_closerunid: 'cr-001', adp_companyid: ACC_C1, adp_name: 'P&L and Balance Sheet — May 2026.pdf', adp_kind: 'Financial statements', adp_status: { label: 'Draft' }, adp_sharedon: '', adp_signedon: '', adp_url: '#' },
+      { adp_deliverableid: 'dl-101', adp_closerunid: 'cr-002', adp_companyid: ACC_C1, adp_name: 'GSTR-2B reconciliation — May 2026.xlsx', adp_kind: 'GST reconciliation', adp_status: { label: 'Draft' }, adp_sharedon: '', adp_signedon: '', adp_url: '#' },
+      { adp_deliverableid: 'dl-301', adp_closerunid: 'cr-004', adp_companyid: ACC_C3, adp_name: 'Bank reconciliation statement — May 2026.pdf', adp_kind: 'Bank reconciliation', adp_status: { label: 'Shared' }, adp_sharedon: '2026-05-29', adp_signedon: '', adp_url: '#' },
+      { adp_deliverableid: 'dl-501', adp_closerunid: 'cr-005', adp_companyid: ACC_C4, adp_name: 'Financial statements — Apr 2026.pdf', adp_kind: 'Financial statements', adp_status: { label: 'Client Signed' }, adp_sharedon: '2026-05-10', adp_signedon: '2026-05-12', adp_url: '#' }
+    ];
+    const m = fetchXml.match(/adp_closerunid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (m) return { results: { entities: all.filter(d => d.adp_closerunid === m[1]) } };
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
+  if (/<entity\s+name="adp_signoff"/i.test(fetchXml)) {
+    const all = [
+      { adp_signoffid: 'so-001', adp_closerunid: 'cr-001', adp_stepid: 'cs-001', adp_level: { label: 'Preparer' }, adp_actor: 'Rahul Mehta', adp_decision: { label: 'Submitted' }, adp_ts: '2026-05-26 17:20', adp_comments: 'Purchase & sales vouchers posted.' },
+      { adp_signoffid: 'so-002', adp_closerunid: 'cr-001', adp_stepid: 'cs-001', adp_level: { label: 'Reviewer' }, adp_actor: 'Priya Sharma', adp_decision: { label: 'Approved' }, adp_ts: '2026-05-27 10:05', adp_comments: 'Verified against source documents.' },
+      { adp_signoffid: 'so-003', adp_closerunid: 'cr-001', adp_stepid: 'cs-003', adp_level: { label: 'Preparer' }, adp_actor: 'Rahul Mehta', adp_decision: { label: 'Submitted' }, adp_ts: '2026-05-28 16:40', adp_comments: 'Bank recon complete, 2 items pending bank confirmation.' },
+      { adp_signoffid: 'so-501', adp_closerunid: 'cr-005', adp_stepid: '', adp_level: { label: 'Partner' }, adp_actor: 'Anand Iyer', adp_decision: { label: 'Approved' }, adp_ts: '2026-05-11 18:00', adp_comments: 'Final review done, release to client.' },
+      { adp_signoffid: 'so-502', adp_closerunid: 'cr-005', adp_stepid: '', adp_level: { label: 'Client' }, adp_actor: 'Delta Logistics', adp_decision: { label: 'Signed' }, adp_ts: '2026-05-12 11:30', adp_comments: 'Accepted.' }
+    ];
+    const m = fetchXml.match(/adp_closerunid"\s+operator="eq"\s+value="([^"]+)"/i);
+    if (m) return { results: { entities: all.filter(s => s.adp_closerunid === m[1]) } };
+    return { results: { entities: all } };
+  }
+
+  if (/<entity\s+name="adp_complianceevent"/i.test(fetchXml)) {
+    const all = [
+      { adp_complianceeventid: 'ce-1', adp_companyid: ACC_C1, adp_title: 'GSTR-1 (May 2026)', adp_category: { label: 'GST' }, adp_period: 'May 2026', adp_duedate: '2026-06-11', adp_status: { label: 'Due Soon' }, adp_severity: { label: 'High' }, adp_reminderdays: 3, adp_owner: 'Priya Sharma' },
+      { adp_complianceeventid: 'ce-2', adp_companyid: ACC_C1, adp_title: 'GSTR-3B (May 2026)', adp_category: { label: 'GST' }, adp_period: 'May 2026', adp_duedate: '2026-06-20', adp_status: { label: 'Upcoming' }, adp_severity: { label: 'High' }, adp_reminderdays: 3, adp_owner: 'Priya Sharma' },
+      { adp_complianceeventid: 'ce-3', adp_companyid: ACC_C1, adp_title: 'TDS payment (May 2026)', adp_category: { label: 'TDS' }, adp_period: 'May 2026', adp_duedate: '2026-06-07', adp_status: { label: 'Due Soon' }, adp_severity: { label: 'High' }, adp_reminderdays: 2, adp_owner: 'Rahul Mehta' },
+      { adp_complianceeventid: 'ce-4', adp_companyid: ACC_C1, adp_title: 'PF payment (May 2026)', adp_category: { label: 'PF' }, adp_period: 'May 2026', adp_duedate: '2026-06-15', adp_status: { label: 'Upcoming' }, adp_severity: { label: 'Medium' }, adp_reminderdays: 3, adp_owner: 'Aisha Khan' },
+      { adp_complianceeventid: 'ce-5', adp_companyid: ACC_C1, adp_title: 'ESI payment (May 2026)', adp_category: { label: 'ESI' }, adp_period: 'May 2026', adp_duedate: '2026-06-15', adp_status: { label: 'Upcoming' }, adp_severity: { label: 'Medium' }, adp_reminderdays: 3, adp_owner: 'Aisha Khan' },
+      { adp_complianceeventid: 'ce-6', adp_companyid: ACC_C1, adp_title: 'GSTR-3B (Apr 2026)', adp_category: { label: 'GST' }, adp_period: 'Apr 2026', adp_duedate: '2026-05-20', adp_status: { label: 'Overdue' }, adp_severity: { label: 'High' }, adp_reminderdays: 3, adp_owner: 'Rahul Mehta' },
+      { adp_complianceeventid: 'ce-7', adp_companyid: ACC_C2, adp_title: 'TDS return 26Q (Q4 FY26)', adp_category: { label: 'TDS' }, adp_period: 'Q4 FY26', adp_duedate: '2026-05-31', adp_status: { label: 'Overdue' }, adp_severity: { label: 'High' }, adp_reminderdays: 7, adp_owner: 'Rahul Mehta' },
+      { adp_complianceeventid: 'ce-8', adp_companyid: ACC_C2, adp_title: 'GSTR-1 (May 2026)', adp_category: { label: 'GST' }, adp_period: 'May 2026', adp_duedate: '2026-06-11', adp_status: { label: 'Due Soon' }, adp_severity: { label: 'High' }, adp_reminderdays: 3, adp_owner: 'Rahul Mehta' },
+      { adp_complianceeventid: 'ce-9', adp_companyid: ACC_C1, adp_title: 'Advance tax — Q1 instalment', adp_category: { label: 'Income Tax' }, adp_period: 'Q1 FY27', adp_duedate: '2026-06-15', adp_status: { label: 'Upcoming' }, adp_severity: { label: 'Medium' }, adp_reminderdays: 5, adp_owner: 'Priya Sharma' },
+      { adp_complianceeventid: 'ce-10', adp_companyid: ACC_C3, adp_title: 'GSTR-1 (May 2026)', adp_category: { label: 'GST' }, adp_period: 'May 2026', adp_duedate: '2026-06-11', adp_status: { label: 'Due Soon' }, adp_severity: { label: 'High' }, adp_reminderdays: 3, adp_owner: 'Aisha Khan' },
+      { adp_complianceeventid: 'ce-11', adp_companyid: ACC_C1, adp_title: 'GSTR-3B (Apr 2026) — filed', adp_category: { label: 'GST' }, adp_period: 'Apr 2026', adp_duedate: '2026-05-20', adp_status: { label: 'Filed' }, adp_severity: { label: 'Low' }, adp_reminderdays: 0, adp_owner: 'Priya Sharma' }
+    ];
+    return { results: { entities: accScope(all, ctx) } };
+  }
+
   return { results: { entities: [] } };
 }
 
@@ -496,7 +741,13 @@ async function renderPage(pageId) {
     __role: role,
     request: { params: {
       id: params.get('company') || params.get('id') || '',
-      report: params.get('report') || ''
+      report: params.get('report') || '',
+      company: params.get('company') || '',
+      engagement: params.get('engagement') || '',
+      processid: params.get('processid') || '',
+      period: params.get('period') || '',
+      closerun: params.get('closerun') || '',
+      tab: params.get('tab') || ''
     }},
     user: signedIn ? {
       id: msalAccount ? (msalAccount.localAccountId || msalAccount.homeAccountId) : 'user-guid-001',
@@ -570,7 +821,7 @@ window.fetch = function (input, init) {
 const PATH_TO_PAGE = {
   '/': 'index',
   '/dashboard': 'dashboard',
-  '/companies': 'companies',
+  '/companies': 'clients',
   '/clients': 'clients',
   '/documents': 'documents',
   '/inbox': 'inbox',
@@ -587,8 +838,12 @@ const PATH_TO_PAGE = {
   '/operator': 'operator',
   '/services': 'service-delivery',
   '/service-delivery': 'service-delivery',
+  '/monthly-close': 'monthly-close',
+  '/accounting': 'accounting',
+  '/important-dates': 'important-dates',
   '/onboarding': 'clients',
   '/settings': 'operator',
+  '/team': 'team',
   '/teams': 'teams',
   '/audit': 'audit',
   '/audit-engagement': 'audit-engagement',

@@ -1,0 +1,183 @@
+{% include 'adp-user-context' %}
+{% assign nav_key = 'compliance' %}
+{% assign page_title = 'Important Dates' %}
+{% assign breadcrumbs = 'Dashboard|/dashboard · Service Delivery|/service-delivery · Important Dates' %}
+{% include 'adp-shell-open' %}
+{% comment %}
+  Important Dates · Alerts · Reminders
+  ------------------------------------
+  A compliance calendar surfacing upcoming and overdue statutory due dates
+  across GST, TDS, PF, ESI, Income-Tax and ROC, with reminders. Quick links
+  jump to the matching report views on the Accounting Activities page
+  (GST 2B, TDS, 26AS, AIS).
+
+  Role-aware:
+   - Accountant : portfolio across all client companies
+   - Firm Admin : own company only
+   - Operator / Client : page not available
+
+  Backing Dataverse table (to be created in solution/src):
+   - adp_complianceevent : title, category, period, duedate, status, severity,
+                           reminderdays, owner, companyid
+
+  The preview harness stubs this table; see preview/preview.js.
+{% endcomment %}
+
+{% assign is_admin      = false %}
+{% assign is_accountant = false %}
+{% if adp_personagroup == 'firmadmin'  %}{% assign is_admin      = true %}{% endif %}
+{% if adp_personagroup == 'accountant' %}{% assign is_accountant = true %}{% endif %}
+{% assign can_view = false %}
+{% if is_accountant or is_admin %}{% assign can_view = true %}{% endif %}
+
+{% unless can_view %}
+  <section class="acc-page">
+    <div class="placeholder">
+      <strong>Important Dates is an internal delivery workspace.</strong><br/>
+      It is available to <em>Accountants</em> and <em>Firm Admins</em>. Switch the role selector to preview it.
+    </div>
+  </section>
+{% else %}
+
+{% fetchxml events_query %}
+<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="false" top="200">
+  <entity name="adp_complianceevent">
+    <attribute name="adp_complianceeventid" />
+    <attribute name="adp_companyid" />
+    <attribute name="adp_title" />
+    <attribute name="adp_category" />
+    <attribute name="adp_period" />
+    <attribute name="adp_duedate" />
+    <attribute name="adp_status" />
+    <attribute name="adp_severity" />
+    <attribute name="adp_reminderdays" />
+    <attribute name="adp_owner" />
+    {% unless is_accountant %}
+    <filter><condition attribute="adp_companyid" operator="eq" value="{{ adp_companyid }}" /></filter>
+    {% endunless %}
+    <order attribute="adp_duedate" descending="false" />
+  </entity>
+</fetch>
+{% endfetchxml %}
+{% assign events = events_query.results.entities %}
+
+{% assign n_overdue = 0 %}{% assign n_duesoon = 0 %}{% assign n_upcoming = 0 %}{% assign n_filed = 0 %}
+{% for e in events %}
+  {% case e.adp_status.label %}
+    {% when 'Overdue' %}{% assign n_overdue = n_overdue | plus: 1 %}
+    {% when 'Due Soon' %}{% assign n_duesoon = n_duesoon | plus: 1 %}
+    {% when 'Upcoming' %}{% assign n_upcoming = n_upcoming | plus: 1 %}
+    {% when 'Filed' %}{% assign n_filed = n_filed | plus: 1 %}
+  {% endcase %}
+{% endfor %}
+
+<section class="acc-page">
+  <header class="acc-header">
+    <h2>Important Dates, Alerts &amp; Reminders</h2>
+    <p class="acc-meta">
+      {% if is_accountant %}
+        Signed in as <strong>Accountant</strong> &middot; portfolio across all clients
+      {% else %}
+        Company <strong>{{ adp_companyid | default: '(none)' }}</strong> &middot; Role <strong>Firm Admin</strong>
+      {% endif %}
+    </p>
+  </header>
+
+  <div class="kpi-grid acc-kpis">
+    <div class="kpi kpi-danger"><span class="kpi-label">Overdue</span><strong>{{ n_overdue }}</strong></div>
+    <div class="kpi kpi-warn"><span class="kpi-label">Due soon</span><strong>{{ n_duesoon }}</strong></div>
+    <div class="kpi"><span class="kpi-label">Upcoming</span><strong>{{ n_upcoming }}</strong></div>
+    <div class="kpi"><span class="kpi-label">Filed</span><strong>{{ n_filed }}</strong></div>
+  </div>
+
+  <div class="acc-section-head"><h3>Compliance calendar</h3>
+    <div class="acc-filterbar">
+      <select id="cdCategory" aria-label="Category">
+        <option value="">All categories</option>
+        <option>GST</option>
+        <option>TDS</option>
+        <option>Income Tax</option>
+        <option>PF</option>
+        <option>ESI</option>
+        <option>ROC</option>
+      </select>
+      <select id="cdStatus" aria-label="Status">
+        <option value="">All statuses</option>
+        <option>Overdue</option>
+        <option>Due Soon</option>
+        <option>Upcoming</option>
+        <option>Filed</option>
+      </select>
+    </div>
+  </div>
+
+  {% if events.size == 0 %}
+    <div class="placeholder">No important dates configured.</div>
+  {% else %}
+  <div class="acc-table-wrap">
+    <table class="table" id="cdTable">
+      <thead>
+        <tr>
+          <th>Due date</th>
+          <th>Compliance</th>
+          <th>Category</th>
+          {% if is_accountant %}<th>Company</th>{% endif %}
+          <th>Period</th>
+          <th>Owner</th>
+          <th>Reminder</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr data-category="{{ e.adp_category.label }}" data-status="{{ e.adp_status.label }}">
+          <td>{{ e.adp_duedate }}</td>
+          <td>
+            <span class="cd-sev cd-sev-{{ e.adp_severity.label | downcase }}" title="{{ e.adp_severity.label }} priority"></span>
+            {{ e.adp_title }}
+          </td>
+          <td><span class="badge badge-stage">{{ e.adp_category.label }}</span></td>
+          {% if is_accountant %}<td>{{ e.adp_companyid.name | default: e.adp_companyid.id }}</td>{% endif %}
+          <td>{{ e.adp_period }}</td>
+          <td>{{ e.adp_owner }}</td>
+          <td class="muted">{{ e.adp_reminderdays }}d before</td>
+          <td><span class="badge badge-{{ e.adp_status.label | downcase | replace: ' ', '-' }}">{{ e.adp_status.label }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="acc-section-head"><h3>Reports &amp; statements</h3><span class="muted">Open the matching view on Accounting Activities</span></div>
+  <div class="tile-grid acc-quicklinks">
+    <a class="tile" href="/accounting#gst"><strong>GST · GSTR-2B</strong><span class="muted">2B vs purchase reconciliation</span></a>
+    <a class="tile" href="/accounting#tds"><strong>TDS register</strong><span class="muted">Section-wise deductions</span></a>
+    <a class="tile" href="/accounting#tds"><strong>Form 26AS</strong><span class="muted">Tax credit statement</span></a>
+    <a class="tile" href="/accounting#tds"><strong>AIS</strong><span class="muted">Annual Information Statement</span></a>
+    <a class="tile" href="/accounting#recon"><strong>Variance analysis</strong><span class="muted">Books vs portal</span></a>
+  </div>
+
+  <script>
+    (function () {
+      var cat = document.getElementById('cdCategory');
+      var st = document.getElementById('cdStatus');
+      var table = document.getElementById('cdTable');
+      if (!table) return;
+      function apply() {
+        var c = cat ? cat.value : '';
+        var s = st ? st.value : '';
+        table.querySelectorAll('tbody tr').forEach(function (row) {
+          var okC = !c || row.getAttribute('data-category') === c;
+          var okS = !s || row.getAttribute('data-status') === s;
+          row.style.display = (okC && okS) ? '' : 'none';
+        });
+      }
+      if (cat) cat.addEventListener('change', apply);
+      if (st) st.addEventListener('change', apply);
+    })();
+  </script>
+</section>
+{% endunless %}
+
+{% include 'adp-shell-close' %}

@@ -1,0 +1,111 @@
+{
+  "name": "Flow_OnboardFirm",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "displayName": "Flow_OnboardFirm",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2019-05-01/workflowdefinition.json#",
+      "actions": {
+        "Create_Firm_Entra_Group": {
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_msgraph" },
+            "method": "post",
+            "path": "/v1.0/groups",
+            "body": {
+              "displayName": "ADP-Firm-@{triggerBody()?['adp_name']}",
+              "mailEnabled": false,
+              "mailNickname": "adp-firm-@{guid()}",
+              "securityEnabled": true
+            }
+          }
+        },
+        "Create_Firm_SharePoint_Site": {
+          "runAfter": { "Create_Firm_Entra_Group": [ "Succeeded" ] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_sharepointonline" },
+            "method": "post",
+            "path": "/_api/SPSiteManager/create",
+            "body": {
+              "Title": "@{triggerBody()?['adp_name']}",
+              "Url": "@{concat(parameters('adp_SharePointBaseUrl'),'/firm-',toLower(replace(triggerBody()?['adp_name'],' ','-')))}",
+              "Lcid": 1033,
+              "WebTemplate": "STS#3"
+            }
+          }
+        },
+        "Provision_Firm_PowerBI_Workspace": {
+          "runAfter": { "Create_Firm_SharePoint_Site": [ "Succeeded" ] },
+          "type": "ApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_powerbi" },
+            "method": "post",
+            "path": "/v1.0/myorg/groups",
+            "body": { "name": "ADP Firm - @{triggerBody()?['adp_name']}" }
+          }
+        },
+        "Update_Firm_Record": {
+          "runAfter": { "Provision_Firm_PowerBI_Workspace": [ "Succeeded" ] },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "UpdateRow",
+            "parameters": {
+              "entityName": "adp_firms",
+              "recordId": "@{triggerBody()?['adp_firmid']}",
+              "item/adp_entragroupid": "@{body('Create_Firm_Entra_Group')?['id']}",
+              "item/adp_sharepointsiteurl": "@{body('Create_Firm_SharePoint_Site')?['SiteUrl']}",
+              "item/adp_powerbiworkspaceid": "@{body('Provision_Firm_PowerBI_Workspace')?['id']}",
+              "item/adp_status": "Active",
+              "item/adp_activatedon": "@{utcNow()}"
+            }
+          }
+        },
+        "Invite_Firm_Admin": {
+          "runAfter": { "Update_Firm_Record": [ "Succeeded" ] },
+          "type": "Http",
+          "inputs": {
+            "method": "POST",
+            "uri": "@{parameters('adp_InviteUserFlowUrl')}",
+            "headers": { "Content-Type": "application/json" },
+            "body": {
+              "email": "@{triggerBody()?['adp_firmadminemail']}",
+              "displayName": "@{triggerBody()?['adp_firmadminname']}",
+              "firmId": "@{triggerBody()?['adp_firmid']}",
+              "jobFunction": "firmadmin",
+              "role": "ADP Firm Admin",
+              "companyAssignments": []
+            }
+          }
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "parameters": {
+        "adp_SharePointBaseUrl": { "type": "String" },
+        "adp_InviteUserFlowUrl": { "type": "SecureString" }
+      },
+      "triggers": {
+        "When_Firm_Created": {
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": { "connectionReferenceName": "shared_commondataserviceforapps" },
+            "operationId": "SubscribeWebhookTrigger",
+            "parameters": {
+              "entityname": "adp_firms",
+              "scope": "Organization",
+              "filteringattributes": "adp_name,adp_status"
+            }
+          }
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {},
+      "shared_msgraph": {},
+      "shared_sharepointonline": {},
+      "shared_powerbi": {}
+    }
+  }
+}
