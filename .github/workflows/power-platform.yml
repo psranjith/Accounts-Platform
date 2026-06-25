@@ -21,18 +21,18 @@ jobs:
       - name: WhoAmI (Dev)
         uses: microsoft/powerplatform-actions/who-am-i@v1
         with:
-          environment-url: ${{ secrets.PP_DEV_URL }}
-          app-id: ${{ secrets.PP_APP_ID }}
+          environment-url: ${{ secrets.PP_DEV_URL || vars.PP_DEV_URL }}
+          app-id: ${{ secrets.PP_APP_ID || vars.PP_APP_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          tenant-id: ${{ secrets.PP_TENANT_ID || vars.PP_TENANT_ID }}
 
       - name: Export unmanaged solution
         uses: microsoft/powerplatform-actions/export-solution@v1
         with:
-          environment-url: ${{ secrets.PP_DEV_URL }}
-          app-id: ${{ secrets.PP_APP_ID }}
+          environment-url: ${{ secrets.PP_DEV_URL || vars.PP_DEV_URL }}
+          app-id: ${{ secrets.PP_APP_ID || vars.PP_APP_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          tenant-id: ${{ secrets.PP_TENANT_ID || vars.PP_TENANT_ID }}
           solution-name: AccountantDeliveryPlatform
           solution-output-file: out/AccountantDeliveryPlatform.zip
           managed: false
@@ -67,10 +67,10 @@ jobs:
       - name: Import into test
         uses: microsoft/powerplatform-actions/import-solution@v1
         with:
-          environment-url: ${{ secrets.PP_TEST_URL }}
-          app-id: ${{ secrets.PP_APP_ID }}
+          environment-url: ${{ secrets.PP_TEST_URL || vars.PP_TEST_URL }}
+          app-id: ${{ secrets.PP_APP_ID || vars.PP_APP_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          tenant-id: ${{ secrets.PP_TENANT_ID || vars.PP_TENANT_ID }}
           solution-file: out/AccountantDeliveryPlatform.zip
           async-operation: true
 
@@ -92,10 +92,10 @@ jobs:
       - name: Export managed for prod
         uses: microsoft/powerplatform-actions/export-solution@v1
         with:
-          environment-url: ${{ secrets.PP_DEV_URL }}
-          app-id: ${{ secrets.PP_APP_ID }}
+          environment-url: ${{ secrets.PP_DEV_URL || vars.PP_DEV_URL }}
+          app-id: ${{ secrets.PP_APP_ID || vars.PP_APP_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          tenant-id: ${{ secrets.PP_TENANT_ID || vars.PP_TENANT_ID }}
           solution-name: AccountantDeliveryPlatform
           solution-output-file: out/AccountantDeliveryPlatform_managed.zip
           managed: true
@@ -103,9 +103,9 @@ jobs:
       - name: Import managed into prod
         uses: microsoft/powerplatform-actions/import-solution@v1
         with:
-          environment-url: ${{ secrets.PP_PROD_URL }}
-          app-id: ${{ secrets.PP_APP_ID }}
+          environment-url: ${{ secrets.PP_PROD_URL || vars.PP_PROD_URL }}
+          app-id: ${{ secrets.PP_APP_ID || vars.PP_APP_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          tenant-id: ${{ secrets.PP_TENANT_ID || vars.PP_TENANT_ID }}
           solution-file: out/AccountantDeliveryPlatform_managed.zip
           async-operation: true
